@@ -1,0 +1,13 @@
+# APP
+HOST=0.0.0.0
+PORT=8090
+
+# DeepSeek
+# BASE_URL=https://api.deepseek.com/v1
+# API_KEY=sk-a79524a9706944a9a1e7e1f9012a3608
+# MODEL=deepseek-chat
+
+# huoshan
+BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+API_KEY=9171efc7-14f1-4a32-ac46-061504f4add6
+MODEL=ep-20250208203112-5kmc4
