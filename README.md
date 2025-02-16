@@ -19,6 +19,11 @@ python create_tables.py
    pip install -r requirements.txt -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
    ```
 2. 启动服务
-   ```bash
-   python main.py
-   ```
+   - 本地启动
+     ```bash
+     python main.py
+     ```
+   - 服务器启动
+     ```bash
+     sh run.sh
+     ```
