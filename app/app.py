@@ -34,11 +34,11 @@ SYSTEM_PROMPT = """你是一个中国古诗词研究专家，精通韵律和典�
 
 
 #输入文本处理程序
-def chat(prompt, style_prompt, model, temperature, style, query):
+def chat(session_id, prompt, style_prompt, model, temperature, style, query):
     params = {
         "query": query,
-        "session_id": "test_app",
-        "user_id": "test_app",
+        "session_id": session_id,
+        "user_id": session_id,
         "style": style or [],
         "model": model,
         "temperature": temperature,
@@ -55,6 +55,7 @@ def chat(prompt, style_prompt, model, temperature, style, query):
 
 def main():
     # 定义输入
+    session_box = gr.Text(lines=1, max_lines=1, value="test_session", label="Session")
     prompt_box = gr.Text(lines=6, max_lines=10, placeholder=SYSTEM_PROMPT, label="Prompt")
     style_prompt_box = gr.Text(lines=3, max_lines=4, placeholder="{\n  \"金庸风\": \"金庸武侠取名风格\"\n  \"琼瑶风\": \"琼瑶电视剧取名风格\"\n}", label="StylePrompt")
     model_box = gr.Radio(["deepseek-v3", "deepseek-r1", "doubao-1.5-pro-32k"], value="deepseek-v3", label="Model")
@@ -65,7 +66,7 @@ def main():
     output_df = gr.Dataframe(label="Name", headers=["姓名", "拼音", "寓意"], datatype=["str", "str", "str"], interactive=False, wrap=True)
     demo = gr.Interface(
         fn=chat,           # 处理函数
-        inputs=[prompt_box, style_prompt_box, model_box, temperature_box, style_choice_box, input_box],      # 定义输入
+        inputs=[session_box, prompt_box, style_prompt_box, model_box, temperature_box, style_choice_box, input_box],      # 定义输入
         outputs=[output_df],      # 定义输出
     )
     demo.launch(share=False)
