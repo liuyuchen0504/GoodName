@@ -4,15 +4,18 @@
 # Date 2025/2/15
 # 
 # ====================
+from typing import List, Optional, Dict, Any
+
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from service.middleware import LoggingWebRoute
-
+from service.model import Name
 
 router = APIRouter(route_class=LoggingWebRoute)
 
 
-@router.get("/style")
+@router.get("/style", response_model=List[Dict[str, Any]])
 async def style():
     return [
         {"name": "生辰八字"},
@@ -24,9 +27,12 @@ async def style():
     ]
 
 
+class SugRequest(BaseModel):
+    attachment: Optional[List[Name]] = []
 
-@router.get("/sug")
-async def sug():
+
+@router.post("/sug/{session_id}", response_model=List[str])
+async def sug(*, session_id: str, body: SugRequest = None):
     return [
         "我希望我的女儿健康快乐",
         "我希望他是个阳光开朗大男孩",

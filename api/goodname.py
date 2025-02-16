@@ -20,7 +20,7 @@ router = APIRouter(route_class=LoggingWebRoute)
 
 
 
-@router.get("/{session_id}/name",  response_model=List[Union[NameView, None]])
+@router.get("/{session_id}/name", response_model=List[Union[NameView, None]])
 async def list_names(
         *,
         session: AsyncSession = Depends(get_asession),
