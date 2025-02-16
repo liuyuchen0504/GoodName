@@ -5,7 +5,7 @@
 # 
 # ====================
 import json
-from typing import List
+from typing import List, Optional, Dict
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -30,8 +30,12 @@ class GoodNameService:
             query: str,
             session_id: str,
             user_id: str,       # 没啥用，只是 name 中需要
+            system_prompt: Optional[str] = None,
+            style_prompt: Optional[Dict[str, str]] = None,
             style: List[str] = [],
             current_like_name: List[Name] = [],
+            model: str = "deepseek-v3",
+            temperature: float = 1.0,
     ):
         # 0. 保存用户信息
         await MessageOp.insert_message(session, Message(**user_msg(query), session_id=session_id))
@@ -45,22 +49,24 @@ class GoodNameService:
         history = await MessageOp.query_message_by_session_id(session=session, session_id=session_id)
 
         # 3. 拼接生成 Prompt
-        system_prompt = SYSTEM_PROMPT.format(
-            style=StyleSettings.format_styles_prompt(style),
+        system_prompt = (system_prompt or SYSTEM_PROMPT).format(
+            style=StyleSettings.format_styles_prompt(style, style_prompt),
             name=format_prompt_name(unknown_names),
             like_name=format_prompt_name(like_names),
             not_like_name=format_prompt_name(not_like_names),
             current_like_name=format_prompt_name(current_like_name),
-            output_format=OUTPUT_FORMAT,
         )
+        ## 输出格式要求
+        system_prompt += OUTPUT_FORMAT
 
         messages = [system_msg(system_prompt)] + format_messages(history) + [user_msg(query)]
 
         print(messages)
         # 4. 调用大模型
         response = ask_llm(
-            model=LLMSettings.MODEL,
+            model=LLMSettings.get_model(model),
             messages=messages,
+            temperature=temperature,
         )
 
         # 5. 解析结果
@@ -84,7 +90,7 @@ class GoodNameService:
         new_names = await NameOp.insert_names(session, llm_names)
 
         # 7 保存生成会话
-        content = json.dumps(new_names) if new_names else "没有新的姓名"
+        content = f"给您取了如下名字：{'，'.join([n.name for n in new_names])}" if new_names else "没有新的姓名"
         await MessageOp.insert_message(session, Message(**assistant_msg(content), session_id=session_id))
 
         for n in new_names:
