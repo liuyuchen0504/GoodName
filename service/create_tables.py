@@ -4,7 +4,13 @@
 # Date 2025/2/15
 # 
 # ====================
+from pathlib import Path
+
 from sqlmodel import SQLModel
+
+import sys
+
+sys.path.append(str(Path(__file__).absolute().parent.parent))
 
 from service.db import engine, session
 from service.model import * # noqa
