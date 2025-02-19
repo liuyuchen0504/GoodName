@@ -4,7 +4,6 @@
 # Date 2025/2/15
 # 
 # ====================
-import json
 from typing import List, Optional, Dict
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -71,7 +70,6 @@ class GoodNameService:
 
         # 5. 解析结果
         result = extract_json(response)
-        print(result)
 
         llm_names = []
         if result:
@@ -88,6 +86,7 @@ class GoodNameService:
         print(llm_names)
         # 6. 保存 name
         new_names = await NameOp.insert_names(session, llm_names)
+        print(new_names)
 
         # 7 保存生成会话
         content = f"给您取了如下名字：{'，'.join([n.name for n in new_names])}" if new_names else "没有新的姓名"

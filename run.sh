@@ -1,6 +1,6 @@
 #!/bin/bash
 
-uvicorn main:app --host 0.0.0.0 --port 8090 --workers 4
+nohup uvicorn main:app --host 0.0.0.0 --port 8090 --workers 4 > nohup.log 2>&1 &
 
 # 启动python 端口 7860
-python ./app/app.py
+nohup python ./app/app.py > debug.log 2>&1 &

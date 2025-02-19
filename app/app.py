@@ -8,6 +8,13 @@ import asyncio
 
 import gradio as gr
 
+import sys
+from pathlib import Path
+
+from service.db.name_op import NameOp
+
+sys.path.append(str(Path(__file__).absolute().parent.parent))
+
 from service.db import asession_local
 from service.goodname import GoodNameService
 
@@ -35,6 +42,7 @@ SYSTEM_PROMPT = """你是一个中国古诗词研究专家，精通韵律和典�
 
 #输入文本处理程序
 def chat(session_id, prompt, style_prompt, model, temperature, style, query):
+
     params = {
         "query": query,
         "session_id": session_id,
@@ -46,10 +54,12 @@ def chat(session_id, prompt, style_prompt, model, temperature, style, query):
         "style_prompt": style_prompt,
     }
 
+    history_names = asyncio.run(NameOp.query_name_by_session_id(session=asession_local(), session_id=session_id))
+
     names = asyncio.run(GoodNameService.generate_names(session=asession_local(), **params))
     if not names:
-        return []
-    return [[n.name, n.pinyin, n.meaning] for n in names]
+        return [], [[n.name, n.pinyin, n.meaning] for n in history_names]
+    return [[n.name, n.pinyin, n.meaning] for n in names], [[n.name, n.pinyin, n.meaning] for n in history_names]
 
 
 
@@ -62,14 +72,14 @@ def main():
     temperature_box = gr.Slider(0, 2, value=1.0, step=0.1, info="值越高结果越随机，建议值：对话-1.3 创意-1.5", label="Temperature")
     style_choice_box = gr.CheckboxGroup(["金庸风", "琼瑶风"], label="Style")
     input_box = gr.Text(lines=1, placeholder="您对名字有什么要求", label="Input")
-    output_box = gr.Text(lines=22, label="Output")
+    output_history = gr.Dataframe(label="History", headers=["姓名", "拼音", "寓意"], datatype=["str", "str", "str"], interactive=False, wrap=True)
     output_df = gr.Dataframe(label="Name", headers=["姓名", "拼音", "寓意"], datatype=["str", "str", "str"], interactive=False, wrap=True)
     demo = gr.Interface(
         fn=chat,           # 处理函数
         inputs=[session_box, prompt_box, style_prompt_box, model_box, temperature_box, style_choice_box, input_box],      # 定义输入
-        outputs=[output_df],      # 定义输出
+        outputs=[output_df, output_history],      # 定义输出
     )
-    demo.launch(share=False)
+    demo.launch(share=True)
 
 
 if __name__ == "__main__":
