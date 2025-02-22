@@ -37,7 +37,7 @@ class NameOp:
         await session.commit()
         for n in name_entity:
             await session.refresh(n)
-        logger.info(f"[InsertNames] session={names[0].session_id} names={[n.names for n in name_entity]}")
+        logger.info(f"[InsertNames] session={names[0].session_id} names={[n.name for n in name_entity]}")
         return name_entity
 
 
