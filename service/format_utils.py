@@ -49,4 +49,8 @@ def extract_json(string: str) -> Optional[Any]:
     try:
         return json.loads(string)
     except:
-        return None
+        return string
+
+
+def has_var(name: str):
+    return name in locals() or name in globals()

@@ -38,7 +38,12 @@ class GenerateParam(BaseModel):
     attachment: Optional[List[NameView]] = []
 
 
-@router.post("/{session_id}/name",  response_model=List[Union[NameView, None]])
+class NamesModel(BaseModel):
+    names: Optional[List[NameView]] = None
+    content: Optional[str] = None
+
+
+@router.post("/{session_id}/name",  response_model=NamesModel)
 async def generate_names(
         *,
         session: AsyncSession = Depends(get_asession),
@@ -49,6 +54,7 @@ async def generate_names(
     for a in body.attachment:
         like = await NameOp.like_name_by_id(session, a.id)
         current_like_name.append(like)
+
     return await GoodNameService.generate_names(
         session=session,
         query=body.query,

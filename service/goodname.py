@@ -4,7 +4,7 @@
 # Date 2025/2/15
 # 
 # ====================
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 from loguru import logger
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -14,7 +14,7 @@ from service.const import LIKE, UNKNOWN
 from service.db.message_op import MessageOp
 from service.db.name_op import NameOp
 from service.format_utils import system_msg, user_msg, format_prompt_name, \
-    format_messages, extract_json, assistant_msg
+    format_messages, extract_json, assistant_msg, has_var
 from service.llm_client import ask_llm
 from service.model import Name, Message
 from service.model.name import NameCreate
@@ -36,7 +36,7 @@ class GoodNameService:
             current_like_name: List[Name] = [],
             model: str = "deepseek-v3",
             temperature: float = 1.0,
-    ):
+    ) -> Dict[str, Any]:
         # 0. 保存用户信息
         await MessageOp.insert_message(session, Message(**user_msg(query), session_id=session_id))
         # 1. 获取所有已经生成的名字
@@ -70,30 +70,35 @@ class GoodNameService:
 
         # 5. 解析结果
         result = extract_json(response)
+        if isinstance(result, str):
+            # 没有生成名字，返回交互文本
+            content = result
+        else:
+            llm_names = []
+            if result:
+                had_names = []
+                for r in result:
+                    try:
+                        if r.get("name") in had_names:
+                            continue
+                        llm_names.append(NameCreate(**r, session_id=session_id, user_id=user_id))
+                        had_names.append(r.name)
+                    except:
+                        pass
 
-        llm_names = []
-        if result:
-            had_names = []
-            for r in result:
-                try:
-                    if r.get("name") in had_names:
-                        continue
-                    llm_names.append(NameCreate(**r, session_id=session_id, user_id=user_id))
-                    had_names.append(r.name)
-                except:
-                    pass
-
-        logger.info(f"[GENERATE_NAME] session={session_id} {llm_names}")
-        # 6. 保存 name
-        new_names = await NameOp.insert_names(session, llm_names)
-        print(new_names)
+            logger.info(f"[GENERATE_NAME] session={session_id} {llm_names}")
+            # 6. 保存 name
+            new_names = await NameOp.insert_names(session, llm_names)
+            content = f"给您取了如下名字：{'，'.join([n.name for n in new_names])}" if new_names else "没有新的姓名"
 
         # 7 保存生成会话
-        content = f"给您取了如下名字：{'，'.join([n.name for n in new_names])}" if new_names else "没有新的姓名"
         await MessageOp.insert_message(session, Message(**assistant_msg(content), session_id=session_id))
 
-        for n in new_names:
-            await session.refresh(n)
+        if has_var("new_names"):
+            for n in new_names:
+                await session.refresh(n)
 
-        return new_names
+            return {"names": new_names}
+        else:
+            return {"content": content}
 
