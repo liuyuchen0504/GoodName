@@ -11,10 +11,9 @@ import gradio as gr
 import sys
 from pathlib import Path
 
-from service.db.name_op import NameOp
-
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
+from service.db.name_op import NameOp
 from service.db import asession_local
 from service.goodname import GoodNameService
 
