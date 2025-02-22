@@ -4,7 +4,8 @@
 # Date 2025/2/9
 # 
 # ====================
-import logging
+from loguru import logger
+import time
 from typing import Callable, Coroutine, Any
 
 from fastapi.routing import APIRoute
@@ -18,11 +19,14 @@ class LoggingWebRoute(APIRoute):
 
         async def custom_route_handler(request: Request) -> Response:
             try:
+                start = time.time()
+                logger.info(f"[REQUEST] method={request.method} path={request.url.path}")
                 response = await origin_route_handler(request)
+                logger.info(f"[RESPONSE] path={request.url.path} cost={time.time()-start} response={response.body}")
                 return response
             except Exception as e:
                 body = await request.body()
-                logging.info(body)
+                logger.error(f"body={body}")
                 raise e
 
         return custom_route_handler

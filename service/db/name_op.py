@@ -6,6 +6,7 @@
 # ====================
 from typing import Optional, Sequence, List
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -28,6 +29,7 @@ class NameOp:
         name_entity = []
         for n in names:
             if n.name in db_names:
+                logger.warning(f"[NAME_REPEAT] session={session_id} name={n.name}")
                 continue
             entity = Name(**n.model_dump())
             name_entity.append(entity)
@@ -35,6 +37,7 @@ class NameOp:
         await session.commit()
         for n in name_entity:
             await session.refresh(n)
+        logger.info(f"[InsertNames] session={names[0].session_id} names={[n.names for n in name_entity]}")
         return name_entity
 
 

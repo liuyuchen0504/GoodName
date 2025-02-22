@@ -4,8 +4,9 @@
 # Date 2025/2/15
 # 
 # ====================
-from typing import Sequence, Optional, List
+from typing import Sequence, Optional
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -33,5 +34,6 @@ class MessageOp:
         session.add(message)
         await session.commit()
         await session.refresh(message)
+        logger.info(f"[InsertMessage] message={message}")
         return message
 

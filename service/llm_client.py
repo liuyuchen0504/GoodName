@@ -6,6 +6,7 @@
 # ====================
 from typing import List
 
+from loguru import logger
 from openai import OpenAI
 
 from config.config import LLMSettings
@@ -21,6 +22,7 @@ def ask_llm(
         stream: bool = False,
         **kwargs,
 ):
+    logger.info(f"[LLMRequest] model={model}, messages={messages}")
     response = llm_client.chat.completions.create(
         messages=messages,
         model=model,
@@ -28,4 +30,5 @@ def ask_llm(
         stream=stream,
         **kwargs,
     )
+    logger.info(f"[LLMResponse] model={model}, response={response}")
     return response.choices[0].message.content

@@ -11,3 +11,4 @@ sqlmodel~=0.0.22
 aiosqlite~=0.21.0
 
 gradio~=5.16.0
+loguru~=0.7.3

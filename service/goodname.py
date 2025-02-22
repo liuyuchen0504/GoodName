@@ -6,6 +6,7 @@
 # ====================
 from typing import List, Optional, Dict
 
+from loguru import logger
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from config.config import LLMSettings, StyleSettings
@@ -60,7 +61,6 @@ class GoodNameService:
 
         messages = [system_msg(system_prompt)] + format_messages(history) + [user_msg(query)]
 
-        print(messages)
         # 4. 调用大模型
         response = ask_llm(
             model=LLMSettings.get_model(model),
@@ -83,7 +83,7 @@ class GoodNameService:
                 except:
                     pass
 
-        print(llm_names)
+        logger.info(f"[GENERATE_NAME] session={session_id} {llm_names}")
         # 6. 保存 name
         new_names = await NameOp.insert_names(session, llm_names)
         print(new_names)
