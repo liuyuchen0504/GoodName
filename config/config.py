@@ -19,6 +19,7 @@ class EnvBaseSettings(BaseSettings):
 class _APPSettings(EnvBaseSettings):
     HOST: str
     PORT: int
+    GRADIO_PORT: int
 
 
 class _LLMSettings(EnvBaseSettings):

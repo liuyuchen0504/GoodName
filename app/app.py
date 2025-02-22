@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
+from config.config import APPSettings
 from service.db.name_op import NameOp
 from service.db import asession_local
 from service.goodname import GoodNameService
@@ -78,7 +79,7 @@ def main():
         inputs=[session_box, prompt_box, style_prompt_box, model_box, temperature_box, style_choice_box, input_box],      # 定义输入
         outputs=[output_df, output_history],      # 定义输出
     )
-    demo.launch(share=True)
+    demo.launch(server_name=APPSettings.HOST, server_port=APPSettings.GRADIO_PORT, share=False)
 
 
 if __name__ == "__main__":
