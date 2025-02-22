@@ -31,3 +31,6 @@ class Message(MessageBase, TimestampMixin, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     session_id: str
 
+    def __str__(self):
+        return f"{'用户' if self.role == 'user' else '助手'}：{self.content}"
+

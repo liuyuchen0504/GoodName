@@ -36,6 +36,7 @@ class GenerateParam(BaseModel):
     query: str
     style: List[str] = []
     attachment: Optional[List[NameView]] = []
+    debug: bool = False
 
 
 class NamesModel(BaseModel):
@@ -62,6 +63,7 @@ async def generate_names(
         user_id=body.user_id,
         style=body.style,
         current_like_name=current_like_name,
+        debug=body.debug,
     )
 
 

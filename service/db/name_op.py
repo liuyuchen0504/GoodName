@@ -10,7 +10,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from service.const import NOT_LIKE, LIKE
+from service.const import UNLIKE, LIKE
 from service.model.name import Name, NameCreate
 
 
@@ -95,7 +95,7 @@ class NameOp:
         name = await cls.query_name_by_id(session=session, name_id=name_id)
         if name:
             name.is_valid = False
-            name.prefer = NOT_LIKE
+            name.prefer = UNLIKE
             session.add(name)
             await session.commit()
             await session.refresh(name)

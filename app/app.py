@@ -21,22 +21,60 @@ from service.goodname import GoodNameService
 
 SYSTEM_PROMPT = """你是一个中国古诗词研究专家，精通韵律和典故。现在需要你按照用户的要求取名字。
 
-## 风格要求
-{style}
+## 取名规则
+- 从历史对话中推断出用户姓氏，如果没有提供姓氏则让用户先提供姓氏
+- 名字需要和姓氏相匹配：如姓杜不能叫杜子腾（谐音肚子疼）
+- 名字要有好的寓意，要求是从四书五经、唐诗宋词等古典书籍中摘出的好字词：如张自强（取自天行健、君子以自强不息中的自强）
+- 名字不要用著名的历史人物：如秦桧、赵高等臭名昭著反面人物，李世民、杜甫等明君直臣
+- 名字不要用网上流行的一些网红名字：如子涵、紫萱、若曦、宇轩等之类的名字
+- 一定要注意音律，名字叫起来朗朗上口
+- 一次给出 {{num}} 个名字，给出名字、寓意、音律解释
 
-## 已取名字
-{name}
+## 取名要求
+- 音律要求
+    - 发音流畅，避免拗口。比如不要都是闭口音、不要两个三声声调的
+    - 避免不好的谐音。比如王沙壁，沙壁和傻逼谐音，傻逼是骂人的
+    - 要有韵律感，声调有起伏。如平仄平、仄平仄
+    - 轻读和重读搭配
 
-## 用户喜欢的名字
-{like_name}
+- 字形要求
+    - 不要取笔画太多的字，不利于书写
+    - 不要使用生僻字
 
-## 用户不喜欢的名字
-{not_like_name}
+- 风格要求
+{{style}}
 
-## 用户当前较满意的名字
-{current_like_name}
+## 历史对话
+{{messages}}
 
-请你务必注意必要再取上述已经有了的姓名，且不要取用户不喜欢的名字类似的名字
+## 用户偏好
+- 喜欢的名字
+{{like_names}}
+
+- 用户不喜欢的名字
+{{unlike_names}}
+
+- 用户当前满意的名字
+{{current_like_name}}
+
+你要根据用户偏好取名字，尤其要关注用户当前满意的名字。禁止再给用户提供上述已经出现过的姓名
+
+## 格式要求
+如果返回名字，请你输出 json 格式，参考如下格式
+```json
+[
+    {
+        "name": "<姓名>",
+        "pinyin": "<拼音>",
+        "meaning": "<寓意>",
+    },
+    ......
+]
+```
+
+否则输出一句提示，提示用户输入你想要的信息。
+
+请你开始回答：
 """
 
 
@@ -52,14 +90,18 @@ def chat(session_id, prompt, style_prompt, model, temperature, style, query):
         "temperature": temperature,
         "system_prompt": prompt,
         "style_prompt": style_prompt,
+        "debug": True,
     }
 
     history_names = asyncio.run(NameOp.query_name_by_session_id(session=asession_local(), session_id=session_id))
 
-    names = asyncio.run(GoodNameService.generate_names(session=asession_local(), **params))
+    rsps = asyncio.run(GoodNameService.generate_names(session=asession_local(), **params))
+    names = rsps.get("names")
+    content = rsps.get("content")
+    prompt = rsps.get("prompt")
     if not names:
-        return [], [[n.name, n.pinyin, n.meaning] for n in history_names]
-    return [[n.name, n.pinyin, n.meaning] for n in names], [[n.name, n.pinyin, n.meaning] for n in history_names]
+        return content, [], [[n.name, n.pinyin, n.meaning] for n in history_names], prompt
+    return content, [[n.name, n.pinyin, n.meaning] for n in names], [[n.name, n.pinyin, n.meaning] for n in history_names], prompt
 
 
 
@@ -72,12 +114,14 @@ def main():
     temperature_box = gr.Slider(0, 2, value=1.0, step=0.1, info="值越高结果越随机，建议值：对话-1.3 创意-1.5", label="Temperature")
     style_choice_box = gr.CheckboxGroup(["金庸风", "琼瑶风"], label="Style")
     input_box = gr.Text(lines=1, placeholder="您对名字有什么要求", label="Input")
+    output_text = gr.Text(lines=1, placeholder="返回信息", label="Content")
     output_history = gr.Dataframe(label="History", headers=["姓名", "拼音", "寓意"], datatype=["str", "str", "str"], interactive=False, wrap=True)
     output_df = gr.Dataframe(label="Name", headers=["姓名", "拼音", "寓意"], datatype=["str", "str", "str"], interactive=False, wrap=True)
+    output_prompt = gr.Text(lines=4, max_lines=10, placeholder="LLM Input", label="LLM Prompt")
     demo = gr.Interface(
         fn=chat,           # 处理函数
         inputs=[session_box, prompt_box, style_prompt_box, model_box, temperature_box, style_choice_box, input_box],      # 定义输入
-        outputs=[output_df, output_history],      # 定义输出
+        outputs=[output_text, output_df, output_history, output_prompt],      # 定义输出
     )
     demo.launch(server_name=APPSettings.HOST, server_port=APPSettings.GRADIO_PORT, share=False)
 

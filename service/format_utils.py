@@ -5,6 +5,7 @@
 # 
 # ====================
 import json
+import re
 from typing import List, Dict, Any, Optional
 
 from service.const import USER, SYSTEM, ASSISTANT
@@ -40,16 +41,12 @@ def format_messages(messages: List[Message]) -> List[Dict]:
 
 
 def extract_json(string: str) -> Optional[Any]:
-    if string[:7].lower().startswith("```json"):
-        string = string[7:]
-    if string.startswith("```"):
-        string = string[3:]
-    if string.endswith("```"):
-        string = string[:-3]
-    try:
-        return json.loads(string)
-    except:
-        return string
+    if match := re.search(r"\[.*\]", string, re.S):
+        try:
+            return json.loads(match.group(0))
+        except:
+            return string
+    return string
 
 
 def has_var(name: str):
