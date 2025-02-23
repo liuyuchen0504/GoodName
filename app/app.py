@@ -5,6 +5,7 @@
 # 
 # ====================
 import asyncio
+import json
 
 import gradio as gr
 
@@ -63,7 +64,8 @@ SYSTEM_PROMPT = """你是一个中国古诗词研究专家，精通韵律和典�
 
 #输入文本处理程序
 def chat(session_id, prompt, style_prompt, model, temperature, style, query):
-
+    if style_prompt:
+        style_prompt = json.loads(style_prompt)
     params = {
         "query": query,
         "session_id": session_id,
@@ -87,14 +89,13 @@ def chat(session_id, prompt, style_prompt, model, temperature, style, query):
     return content, [[n.name, n.pinyin, n.meaning] for n in names], [[n.name, n.pinyin, n.meaning] for n in history_names], prompt
 
 
-
 def main():
     # 定义输入
     session_box = gr.Text(lines=1, max_lines=1, value="test_session", label="Session")
     prompt_box = gr.Text(lines=6, max_lines=10, placeholder=SYSTEM_PROMPT, label="Prompt")
     style_prompt_box = gr.Text(lines=3, max_lines=4, placeholder="{\n  \"金庸风\": \"金庸武侠取名风格\"\n  \"琼瑶风\": \"琼瑶电视剧取名风格\"\n}", label="StylePrompt")
     model_box = gr.Radio(["deepseek-v3", "deepseek-r1", "doubao-1.5-pro-32k"], value="deepseek-v3", label="Model")
-    temperature_box = gr.Slider(0, 2, value=1.0, step=0.1, info="值越高结果越随机，建议值：对话-1.3 创意-1.5", label="Temperature")
+    temperature_box = gr.Slider(0, 1, value=1.0, step=0.1, info="值越高结果越随机，建议值：对话-1.3 创意-1.5", label="Temperature")
     # style_choice_box = gr.CheckboxGroup(StyleSettings.all_styles, label="Style")
     style_choice_box = gr.Dropdown(StyleSettings.all_styles, multiselect=True, label="Style")
     input_box = gr.Text(lines=1, placeholder="您对名字有什么要求", label="Input")

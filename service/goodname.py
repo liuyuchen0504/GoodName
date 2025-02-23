@@ -54,7 +54,6 @@ class GoodNameService:
 
         # 4. Prompt
         prompt = PromptFactory.format_template(
-            "good_name_prompt_v1",
             user_prompt=system_prompt,
             styles=styles,
             messages=history,
