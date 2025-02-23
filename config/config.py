@@ -4,6 +4,7 @@
 # Date 2025/2/9
 # 
 # ====================
+import json
 from pathlib import Path
 from typing import List, Optional, Dict
 
@@ -49,14 +50,18 @@ LLMSettings = _LLMSettings()
 class _StyleSettings:
 
     def __init__(self):
-        self._styles = {
-            "金庸风": "取的名字要和金庸武侠中正面人物的名字风格类似，但是不用直接使用金庸武侠人物的名字，比如：不能直接取风清扬，但可以任逍遥，两者都有潇洒的感觉"
-        }
+        style_path = str(Path(__file__).absolute().parent.parent / "service/prompts/style_prompt.json")
+        with open(style_path, "rb") as rf:
+            self._styles = json.load(rf)
 
     def get_selected_styles(self, styles: List[str], user_style_prompts: Dict[str, str] = None):
         if not styles:
             return None
         return {k: v for k, v in (user_style_prompts or self._styles).items() if k in styles}
+
+    @property
+    def all_styles(self):
+        return list(self._styles.keys())
 
 
 StyleSettings = _StyleSettings()

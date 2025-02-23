@@ -6,10 +6,13 @@
 # ====================
 from pathlib import Path
 
-from jinja2 import Template, FileSystemLoader, Environment
+from jinja2 import FileSystemLoader, Environment
 from pydantic import BaseModel
 
 from service.model import Message
+
+
+_DEFAULT = "good_name_prompt_v2"
 
 
 class _PromptFactory:
@@ -19,7 +22,7 @@ class _PromptFactory:
         _loader = FileSystemLoader(searchpath=file_dir)
         self._env = Environment(loader=_loader)
 
-    def format_template(self, prompt_name: str = "good_name_prompt_v1", user_prompt: str = None, trans_str: bool = False, **kwargs):
+    def format_template(self, prompt_name: str = _DEFAULT, user_prompt: str = None, trans_str: bool = False, **kwargs) -> str:
         if trans_str:
             prompt_name += "_debug"
         if "num" not in kwargs:
@@ -66,7 +69,7 @@ if __name__ == "__main__":
     unlike_names = None #[{"name": "刘晓生", "meaning": "xxx"}, {"name": "刘晓生", "meaning": "xxx"}]
     current_like_name = {"name": "刘晓生", "meaning": "xxx"}
     print(PromptFactory.format_template(
-        "good_name_prompt_v1",
+        "good_name_prompt_v2",
         trans_str=True,
         styles=styles,
         messages=messages,

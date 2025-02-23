@@ -38,6 +38,8 @@ class GoodNameService:
             debug: bool = False,
     ) -> Dict[str, Any]:
         # 0. 保存用户信息
+        if style:
+            query = f"{query}。要求如下风格类型：{style}"
         await MessageOp.insert_message(session, Message(**user_msg(query), session_id=session_id))
         # 1. 获取所有已经生成的名字
         names = await NameOp.query_name_by_session_id(session=session, session_id=session_id)

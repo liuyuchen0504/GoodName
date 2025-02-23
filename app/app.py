@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
-from config.config import APPSettings
+from config.config import APPSettings, StyleSettings
 from service.db.name_op import NameOp
 from service.db import asession_local
 from service.goodname import GoodNameService
@@ -57,7 +57,7 @@ SYSTEM_PROMPT = """你是一个中国古诗词研究专家，精通韵律和典�
 - 用户当前满意的名字
 {{current_like_name}}
 
-你要根据用户偏好取名字，尤其要关注用户当前满意的名字。禁止再给用户提供上述已经出现过的姓名
+根据历史对话总结用户需求，以及根据用户偏好取名字，尤其要关注用户当前满意的名字。禁止再给用户提供上述已经出现过的姓名
 """
 
 
@@ -95,10 +95,11 @@ def main():
     style_prompt_box = gr.Text(lines=3, max_lines=4, placeholder="{\n  \"金庸风\": \"金庸武侠取名风格\"\n  \"琼瑶风\": \"琼瑶电视剧取名风格\"\n}", label="StylePrompt")
     model_box = gr.Radio(["deepseek-v3", "deepseek-r1", "doubao-1.5-pro-32k"], value="deepseek-v3", label="Model")
     temperature_box = gr.Slider(0, 2, value=1.0, step=0.1, info="值越高结果越随机，建议值：对话-1.3 创意-1.5", label="Temperature")
-    style_choice_box = gr.CheckboxGroup(["金庸风", "琼瑶风"], label="Style")
+    # style_choice_box = gr.CheckboxGroup(StyleSettings.all_styles, label="Style")
+    style_choice_box = gr.Dropdown(StyleSettings.all_styles, multiselect=True, label="Style")
     input_box = gr.Text(lines=1, placeholder="您对名字有什么要求", label="Input")
     output_text = gr.Text(lines=1, placeholder="返回信息", label="Content")
-    output_history = gr.Dataframe(label="History", headers=["姓名", "拼音", "寓意"], datatype=["str", "str", "str"], interactive=False, wrap=True)
+    output_history = gr.Dataframe(label="History", headers=["姓名", "拼音", "寓意"], datatype=["str", "str", "str"], interactive=False, max_height=300, wrap=True)
     output_df = gr.Dataframe(label="Name", headers=["姓名", "拼音", "寓意"], datatype=["str", "str", "str"], interactive=False, wrap=True)
     output_prompt = gr.Text(lines=4, max_lines=10, placeholder="LLM Input", label="LLM Prompt")
     demo = gr.Interface(
