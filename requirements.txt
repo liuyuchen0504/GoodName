@@ -1,0 +1,16 @@
+-i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+
+uvicorn~=0.34.0
+fastapi~=0.115.8
+pydantic-settings~=2.7.1
+
+pydantic~=2.10.6
+openai~=1.61.1
+sqlalchemy~=2.0.38
+sqlmodel~=0.0.22
+aiosqlite~=0.21.0
+
+gradio~=5.16.0
+loguru~=0.7.3
+
+jinja2~=3.1.5
