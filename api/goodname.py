@@ -11,9 +11,12 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from service.db import get_asession
+from service.db.message_op import MessageOp
 from service.db.name_op import NameOp
+from service.format_utils import user_msg, assistant_msg
 from service.goodname import GoodNameService
 from service.middleware import LoggingWebRoute
+from service.model import Message
 from service.model.name import NameView
 
 router = APIRouter(route_class=LoggingWebRoute)
@@ -51,20 +54,39 @@ async def generate_names(
         session_id: str,
         body: GenerateParam,
 ):
+    # 保存用户信息
+    await MessageOp.insert_message(session, Message(**user_msg(body.query), session_id=session_id))
+
     current_like_name = []
     for a in body.attachment:
         like = await NameOp.like_name_by_id(session, a.id)
         current_like_name.append(like)
 
-    return await GoodNameService.generate_names(
-        session=session,
-        query=body.query,
-        session_id=session_id,
-        user_id=body.user_id,
-        style=body.style,
-        current_like_name=current_like_name,
-        debug=body.debug,
-    )
+    intention = await GoodNameService.check_and_intention(session=session, session_id=session_id)
+
+    # 异常情况
+    if isinstance(intention, str):
+        response = {"content": intention}
+    # 没有姓名和性别情况
+    elif intention.get("last_name") in [None, "", "无", "空"] or intention.get("sex") not in ["男孩", "女孩"]:
+        response = {"content": intention.get("reply")}
+    # 正常情况
+    else:
+        response = await GoodNameService.generate_names(
+            session=session,
+            query=body.query,
+            last_name=intention["last_name"],
+            sex=intention["sex"],
+            session_id=session_id,
+            user_id=body.user_id,
+            style=body.style,
+            current_like_name=current_like_name,
+            debug=body.debug,
+        )
+
+    # 保存生成会话
+    await MessageOp.insert_message(session, Message(**assistant_msg(response.get("name") or response.get("content")), session_id=session_id))
+    return response
 
 
 @router.delete("/{session_id}/name/{name_id}", response_model=Union[NameView, None])

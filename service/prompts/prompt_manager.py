@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from service.model import Message
 
 
-_DEFAULT = "good_name_prompt_v2"
+_DEFAULT = "good_name_default_prompt"
 
 
 class _PromptFactory:
@@ -23,8 +23,6 @@ class _PromptFactory:
         self._env = Environment(loader=_loader)
 
     def format_template(self, prompt_name: str = _DEFAULT, user_prompt: str = None, trans_str: bool = False, **kwargs) -> str:
-        if trans_str:
-            prompt_name += "_debug"
         if "num" not in kwargs:
             kwargs["num"] = 3
         for k, v in kwargs.items():

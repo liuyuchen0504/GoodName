@@ -13,6 +13,8 @@ from service.model import Name, Message
 
 
 def format_message(role: str, content: str, **kwargs):
+    if not isinstance(content, str):
+        content = json.dumps(content)
     return {"role": role, "content": content}
 
 
@@ -40,8 +42,8 @@ def format_messages(messages: List[Message]) -> List[Dict]:
     return [format_message(**m.model_dump()) for m in messages]
 
 
-def extract_json(string: str) -> Optional[Any]:
-    if match := re.search(r"\[.*\]", string, re.S):
+def extract_json(string: str, pattern: str = r"\{.*\}") -> Optional[Any]:
+    if match := re.search(pattern, string, re.S):
         try:
             return json.loads(match.group(0))
         except:
