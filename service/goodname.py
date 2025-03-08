@@ -14,8 +14,7 @@ from config.config import LLMSettings, StyleSettings
 from service.const import LIKE
 from service.db.message_op import MessageOp
 from service.db.name_op import NameOp
-from service.format_utils import user_msg, extract_json, assistant_msg, \
-    system_msg, format_messages
+from service.format_utils import user_msg, extract_json, system_msg, format_messages
 from service.llm_client import ask_llm
 from service.model import Name, Message
 from service.model.name import NameCreate
@@ -31,10 +30,10 @@ class GoodNameService:
             model: str = "deepseek-v3"
     ) -> Dict[str, str]:
         history = await MessageOp.query_message_by_session_id(session=session, session_id=session_id)
-        prompt = PromptFactory.format_template(prompt_name="intention_prompt")
+        prompt = PromptFactory.format_template(prompt_name="intention_prompt", messages=history)
         response = ask_llm(
             model=LLMSettings.get_model(model),
-            messages=[system_msg(prompt)] + format_messages(history),
+            messages=[user_msg(prompt)],
         )
         return extract_json(response)
 
@@ -54,9 +53,9 @@ class GoodNameService:
             current_like_name: List[Name] = [],
             model: str = "deepseek-v3",
             temperature: float = 1.0,
+            num: int = 5,
             debug: bool = False,
     ) -> Dict[str, Any]:
-        await MessageOp.insert_message(session, Message(**user_msg(query), session_id=session_id))
         # 1. 获取所有已经生成的名字
         names = await NameOp.query_name_by_session_id(session=session, session_id=session_id)
         like_names = [n for n in names if n.prefer == LIKE]
@@ -78,11 +77,13 @@ class GoodNameService:
             user_prompt=system_prompt,
             styles=styles,
             messages=history,
+            names=names,
             like_names=like_names,
             unlike_names=unlike_names,
             current_like_name=current_like_name,
             last_name=last_name,
             sex=sex,
+            num=num
         )
 
         messages = [system_msg(prompt)] + format_messages(history)
@@ -96,9 +97,8 @@ class GoodNameService:
 
         # 5. 解析结果
         result = extract_json(response, r"\[.*\]")
-        new_names = None
         if isinstance(result, str):
-            pass
+            return {"content": response, "prompt": prompt if debug else None}
         else:
             llm_names = []
             if result:
@@ -116,9 +116,6 @@ class GoodNameService:
             # 6. 保存 name
             new_names = await NameOp.insert_names(session, llm_names)
 
-        if new_names:
             for n in new_names:
                 await session.refresh(n)
-            return {"names": [n.model_dump() for n in new_names], "prompt": prompt if debug else None}
-        else:
-            return {"content": response, "prompt": prompt if debug else None}
+            return {"names": new_names, "prompt": prompt if debug else None}

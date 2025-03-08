@@ -14,7 +14,7 @@ from service.model import Name, Message
 
 def format_message(role: str, content: str, **kwargs):
     if not isinstance(content, str):
-        content = json.dumps(content)
+        content = json.dumps(content, ensure_ascii=False)
     return {"role": role, "content": content}
 
 

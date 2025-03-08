@@ -7,7 +7,7 @@
 from typing import List, Union, Optional
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from service.db import get_asession
@@ -37,9 +37,11 @@ async def list_names(
 class GenerateParam(BaseModel):
     user_id: str
     query: str
-    style: List[str] = []
-    attachment: Optional[List[NameView]] = []
-    debug: bool = False
+    style: List[str] = Field([], description="风格")
+    attachment: Optional[List[NameView]] = Field([], description="姓名卡片")
+    num: int = Field(5, gt=0, description="名字数量")
+    model: str = Field("deepseek-v3", description="模型")
+    debug: bool = Field(False, description="是否 debug 模式")
 
 
 class NamesModel(BaseModel):
@@ -81,11 +83,19 @@ async def generate_names(
             user_id=body.user_id,
             style=body.style,
             current_like_name=current_like_name,
+            num=body.num,
+            model=body.model,
             debug=body.debug,
         )
 
     # 保存生成会话
-    await MessageOp.insert_message(session, Message(**assistant_msg(response.get("name") or response.get("content")), session_id=session_id))
+    content = response.get("content") or [n.to_dict() for n in response.get("names")]
+    await MessageOp.insert_message(session, Message(**assistant_msg(content), session_id=session_id))
+
+    if names := response.get("names"):
+        for n in names:
+            await session.refresh(n)
+
     return response
 
 

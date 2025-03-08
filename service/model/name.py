@@ -53,6 +53,13 @@ class Name(NameBase, TimestampMixin, table=True):
             name_str += f"：表达了{self.meaning}"
         return name_str
 
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "pinyin": self.pinyin,
+            "meaning": self.meaning
+        }
+
 
 class NameCreate(NameBase):
     user_id: str  # 标识用户

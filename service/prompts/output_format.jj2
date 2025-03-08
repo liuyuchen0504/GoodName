@@ -11,4 +11,11 @@
     ......
 ]
 ```
+
+{% if names %}
+以下是已经取过的名字，禁止取和下面这些名字相同的名字
+{% for n in names %}
+  - {{n.name}}
+{% endfor %}
+{% endif %}
 {% endblock %}
