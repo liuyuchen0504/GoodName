@@ -57,15 +57,12 @@ async def ask_llm(
         if delta.content:
             response.content += delta.content
             # 卡片检测
-            if "{" in delta.content:
-                current_card = delta.content
-            elif current_card:
-                current_card += delta.content
+            current_card += delta.content
             if matcher := re.search(r"\{.*\}", current_card, re.S):
                 if websocket:
                     card = NameCard(data=json.loads(matcher.group(0)))
-                    await websocket.send_json(DeltaMessage(content=delta.content, type="message.delta", card=card).model_dump())
-                    current_card = current_card.replace(matcher.group(0), "")
+                    await websocket.send_json(DeltaMessage(type="message.delta", card=card).model_dump())
+                    current_card = current_card.split("}")[-1]
         # openai client 暂时不支持
         # elif delta.reasoning_content:
         #     response.reasoning_content += delta.reasoning_content

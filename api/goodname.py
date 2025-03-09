@@ -7,7 +7,6 @@
 from typing import List, Union, Optional
 
 from fastapi import APIRouter, Depends, WebSocket
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -88,6 +87,7 @@ async def generate_names_ws(
                 current_like_name=current_like_name,
                 num=body.num,
                 model=body.model,
+                websocket=websocket,
                 debug=body.debug,
             )
 
