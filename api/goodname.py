@@ -6,7 +6,8 @@
 # ====================
 from typing import List, Union, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, WebSocket
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,12 +16,12 @@ from service.db.message_op import MessageOp
 from service.db.name_op import NameOp
 from service.format_utils import user_msg, assistant_msg
 from service.goodname import GoodNameService
+from service.llm_client import DeltaMessage
 from service.middleware import LoggingWebRoute
 from service.model import Message
 from service.model.name import NameView
 
 router = APIRouter(route_class=LoggingWebRoute)
-
 
 
 @router.get("/{session_id}/name", response_model=List[Union[NameView, None]])
@@ -47,6 +48,53 @@ class GenerateParam(BaseModel):
 class NamesModel(BaseModel):
     names: Optional[List[NameView]] = None
     content: Optional[str] = None
+
+
+@router.websocket("/ws/{session_id}/name")
+async def generate_names_ws(
+        websocket: WebSocket,
+        *,
+        session: AsyncSession = Depends(get_asession),
+        session_id: str,
+):
+    await websocket.accept()
+
+    while True:
+        body = await websocket.receive_json()
+        body = GenerateParam(**body)
+        await MessageOp.insert_message(session, Message(**user_msg(body.query), session_id=session_id))
+        current_like_name = []
+        for a in body.attachment:
+            like = await NameOp.like_name_by_id(session, a.id)
+            current_like_name.append(like)
+
+        intention = await GoodNameService.check_and_intention(session=session, session_id=session_id)
+        # 异常情况
+        if isinstance(intention, str):
+            response = {"content": intention}
+        # 没有姓名和性别情况
+        elif intention.get("last_name") in [None, "", "无", "空"] or intention.get("sex") not in ["男孩", "女孩"]:
+            response = {"content": intention.get("reply")}
+            await websocket.send_json(DeltaMessage(type="message.delta", content=intention.get("reply")).model_dump())
+        # 正常情况
+        else:
+            response = await GoodNameService.generate_names(
+                session=session,
+                last_name=intention["last_name"],
+                sex=intention["sex"],
+                session_id=session_id,
+                user_id=body.user_id,
+                style=body.style,
+                current_like_name=current_like_name,
+                num=body.num,
+                model=body.model,
+                debug=body.debug,
+            )
+
+        # 保存生成会话
+        content = response.get("content") or [n.to_dict() for n in response.get("names")]
+        await MessageOp.insert_message(session, Message(**assistant_msg(content), session_id=session_id))
+        await websocket.send_json(DeltaMessage(type="completion", content="DONE").model_dump())
 
 
 @router.post("/{session_id}/name",  response_model=NamesModel)
@@ -76,7 +124,6 @@ async def generate_names(
     else:
         response = await GoodNameService.generate_names(
             session=session,
-            query=body.query,
             last_name=intention["last_name"],
             sex=intention["sex"],
             session_id=session_id,
