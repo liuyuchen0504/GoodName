@@ -1,8 +1,8 @@
 请用提供的生辰八字信息根据传统命理学原理，按以下流程给{{ last_name }}姓{{ gender }}取{{ num }}个名字：
-生辰八字：{{ shengchenbazi }}
+生辰八字：{{ solar2lunar_chinese_str(birthdate) }}
 
 一、八字排盘分析
-对{{ shengchenbazi }}进行干支解析，标注各柱对应的天干地支
+对生辰八字进行干支解析，标注各柱对应的天干地支
 制作五行能量分布表：
 统计天干地支中金木水火土的出现次数
 分析各元素间的生克关系（如相生/相耗/被克）
@@ -43,7 +43,7 @@
 请先生成八字分析报告，再基于专业命理知识提出姓名方案。
 
 {#- 输出格式要求 -#}
-{%- extends "./shengchenbazi_output_format.jj2" -%}
+{%- extends "./output_format.jj2" -%}
 {%- block output %}
 {{super()}}
 {%- endblock -%}

@@ -50,14 +50,18 @@ LLMSettings = _LLMSettings()
 class _StyleSettings:
 
     def __init__(self):
-        style_path = str(Path(__file__).absolute().parent.parent / "service/prompts/style_prompt.json")
-        with open(style_path, "rb") as rf:
-            self._styles = json.load(rf)
+        self._styles = {
+            "金庸风": "jinyong",
+            "琼瑶风": "qiongyao",
+            "文艺风": "artistic",
+            "生辰八字": "birthdate",
+            "家族辈份": "lineage",
+        }
 
-    def get_selected_styles(self, styles: List[str], user_style_prompts: Dict[str, str] = None):
+    def get_selected_styles(self, styles: List[str]):
         if not styles:
             return None
-        return {k: v for k, v in (user_style_prompts or self._styles).items() if k in styles}
+        return {k: v for k, v in self._styles.items() if k in styles}
 
     @property
     def all_styles(self):

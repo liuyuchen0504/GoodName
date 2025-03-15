@@ -5,7 +5,7 @@
 # 
 # ====================
 import random
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 
 from loguru import logger
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -48,9 +48,8 @@ class GoodNameService:
             user_id: str,       # 没啥用，只是 name 中需要
             last_name: str = None,
             gender: str = None,
-            birthday: str = None,
-            system_prompt: Optional[str] = None,
-            style_prompt: Optional[Dict[str, str]] = None,
+            birthdate: str = None,
+            family_word: str = None,
             style: List[str] = [],
             current_like_name: List[Name] = [],
             model: str = "deepseek-v3",
@@ -68,37 +67,29 @@ class GoodNameService:
         # 2. 获取所有历史对话信息
         history = await MessageOp.query_message_by_session_id(session=session, session_id=session_id)
 
-        # 3. 获取选择的风格
-        styles = StyleSettings.get_selected_styles(style, style_prompt)
+        # 3. 获取选择的风格，目前只支持单风格
+        styles = StyleSettings.get_selected_styles(style)
 
         # 4. Prompt
-        shengchenbazi = None
         if styles:
             if "生辰八字" in styles:
-                if not birthday:
+                if not birthdate:
                     return {"content": "请您提供出生日期"}
-                prompt_type = "good_name_shengchenbazi_prompt"
-                shengchenbazi = solar2lunar_chinese_str(birthday)
-            else:
-                prompt_type = "good_name_default_prompt"
+            prompt_type = f"style_{list(styles.values())[0]}"
         else:
-            prompt_type = random.choice(["good_name_combine_prompt", "good_name_default_prompt"])
-        prompt = PromptFactory.format_template(
+            prompt_type = random.choice(["style_combine", "style_default", "style_artistic", "style_jinyong", "style_qiongyao"])
+        system_prompt = PromptFactory.format_template(
             prompt_name=prompt_type,
-            user_prompt=system_prompt,
             styles=styles,
-            messages=history,
             names=names,
-            like_names=like_names,
-            unlike_names=unlike_names,
-            current_like_name=current_like_name,
             last_name=last_name,
             gender=gender,
-            shengchenbazi=shengchenbazi,
+            family_word=family_word,
+            birthdate=birthdate,
             num=num
         )
 
-        messages = [system_msg(prompt)] + format_messages(history)
+        messages = [system_msg(system_prompt)] + format_messages(history)
 
         # 4. 调用大模型
         response = await ask_llm(
@@ -111,7 +102,7 @@ class GoodNameService:
         # 5. 解析结果
         result = extract_json(response.content, r"\[.*\]")
         if isinstance(result, str):
-            return {"content": response.content, "prompt": prompt if debug else None}
+            return {"content": response.content, "prompt": system_prompt if debug else None}
         else:
             llm_names = []
             if result:
@@ -120,7 +111,9 @@ class GoodNameService:
                     try:
                         if r.get("name") in had_names:
                             continue
-                        llm_names.append(NameCreate(**r, shengchengbazi=shengchenbazi, session_id=session_id, user_id=user_id))
+                        if "生辰八字" in styles and birthdate:
+                            r["shengchengbazi"] = solar2lunar_chinese_str(birthdate)
+                        llm_names.append(NameCreate(**r, session_id=session_id, user_id=user_id))
                         had_names.append(r["name"])
                     except Exception as e:
                         logger.warning(f"[SAVE_NAME] name={r} error={e}")
@@ -131,4 +124,4 @@ class GoodNameService:
 
             for n in new_names:
                 await session.refresh(n)
-            return {"names": new_names, "prompt": prompt if debug else None}
+            return {"names": new_names, "prompt": system_prompt if debug else None}

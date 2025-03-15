@@ -160,7 +160,9 @@ async def generate_names(
     # 没有姓名和性别情况
     elif intention.get("last_name") in [None, "", "无", "空"] or intention.get("gender") not in ["男孩", "女孩"]:
         response = {"content": intention.get("reply")}
-    elif "生辰八字" in body.style and intention.get("birthday") in [None, "", "无", "空"]:
+    elif "生辰八字" in body.style and intention.get("birthdate") in [None, "", "无", "空"]:
+        response = {"content": intention.get("reply")}
+    elif "家族辈份" in body.style and intention.get("family_word") in [None, "", "无"]:
         response = {"content": intention.get("reply")}
     # 正常情况
     else:
@@ -168,7 +170,8 @@ async def generate_names(
             session=session,
             last_name=intention["last_name"],
             gender=intention["gender"],
-            birthday=intention.get("birthday"),
+            birthdate=intention.get("birthdate"),
+            family_word=intention.get("family_word"),
             session_id=session_id,
             user_id=body.user_id,
             style=body.style,

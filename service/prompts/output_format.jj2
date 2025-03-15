@@ -1,21 +1,28 @@
 {% block output %}
 ## 格式要求
 如果返回名字，请你输出 json 格式，格式如下：
+
+{%- if styles and '生辰八字' in styles -%}
 ```json
 [
     {
         "name": "<姓名>",
         "pinyin": "<拼音>",
-        "meaning": "<寓意。如果要求根据生辰八字风格取名则生成五行缺属和专业命理知识对姓名的解释>",
+        "meaning": "<生成五行缺属、喜用神和专业命理知识对姓名的解释>",
     },
     ......
 ]
 ```
-
-{% if names %}
-以下是已经取过的名字，禁止取和下面这些名字相同的名字
-{% for n in names %}
-  - {{n.name}}
-{% endfor %}
-{% endif %}
+{%- else -%}
+```json
+[
+    {
+        "name": "<姓名>",
+        "pinyin": "<拼音>",
+        "meaning": "<寓意。给出名字的美好寓意>",
+    },
+    ......
+]
+```
+{%- endif %}
 {% endblock %}
