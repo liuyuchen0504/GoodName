@@ -43,7 +43,7 @@
 请先生成八字分析报告，再基于专业命理知识提出姓名方案。
 
 {#- 输出格式要求 -#}
-{%- extends "./output_format.jj2" -%}
+{%- extends "./shengchenbazi_output_format.jj2" -%}
 {%- block output %}
 {{super()}}
 {%- endblock -%}
