@@ -76,7 +76,7 @@ class NameView(NameBase):
     def feature(self) -> List[Dict[str, Any]]:
         feat = []
         if self.shengchengbazi:
-            feat.append({"生成八字": self.shengchengbazi})
+            feat.append({"生辰八字": self.shengchengbazi})
         if self.wuxingbagua:
             feat.append({"五行八卦": self.wuxingbagua})
         if self.jiazubeifen:

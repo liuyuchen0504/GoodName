@@ -23,6 +23,46 @@ from service.model.name import NameView
 router = APIRouter(route_class=LoggingWebRoute)
 
 
+html = """
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chat</title>
+    </head>
+    <body>
+        <h1>WebSocket Chat</h1>
+        <form action="" onsubmit="sendMessage(event)">
+            <input type="text" id="messageText" autocomplete="off"/>
+            <button>Send</button>
+        </form>
+        <ul id='messages'>
+        </ul>
+        <script>
+            var ws = new WebSocket("ws://localhost:8090/api/goodname/ws/test_ws/name");
+            ws.onmessage = function(event) {
+                var messages = document.getElementById('messages')
+                var message = document.createElement('li')
+                var content = document.createTextNode(event.data)
+                message.appendChild(content)
+                messages.appendChild(message)
+            };
+            function sendMessage(event) {
+                var input = document.getElementById("messageText")
+                ws.send(input.value)
+                input.value = ''
+                event.preventDefault()
+            }
+        </script>
+    </body>
+</html>
+"""
+
+
+@router.get("/")
+async def generate_names_ws():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(html)
+
 @router.get("/{session_id}/name", response_model=List[Union[NameView, None]])
 async def list_names(
         *,
@@ -72,7 +112,7 @@ async def generate_names_ws(
         if isinstance(intention, str):
             response = {"content": intention}
         # 没有姓名和性别情况
-        elif intention.get("last_name") in [None, "", "无", "空"] or intention.get("sex") not in ["男孩", "女孩"]:
+        elif intention.get("last_name") in [None, "", "无", "空"] or intention.get("gender") not in ["男孩", "女孩"]:
             response = {"content": intention.get("reply")}
             await websocket.send_json(DeltaMessage(type="message.delta", content=intention.get("reply")).model_dump())
         # 正常情况
@@ -80,7 +120,7 @@ async def generate_names_ws(
             response = await GoodNameService.generate_names(
                 session=session,
                 last_name=intention["last_name"],
-                sex=intention["sex"],
+                gender=intention["gender"],
                 session_id=session_id,
                 user_id=body.user_id,
                 style=body.style,
@@ -118,14 +158,17 @@ async def generate_names(
     if isinstance(intention, str):
         response = {"content": intention}
     # 没有姓名和性别情况
-    elif intention.get("last_name") in [None, "", "无", "空"] or intention.get("sex") not in ["男孩", "女孩"]:
+    elif intention.get("last_name") in [None, "", "无", "空"] or intention.get("gender") not in ["男孩", "女孩"]:
+        response = {"content": intention.get("reply")}
+    elif "生辰八字" in body.style and intention.get("birthday") in [None, "", "无", "空"]:
         response = {"content": intention.get("reply")}
     # 正常情况
     else:
         response = await GoodNameService.generate_names(
             session=session,
             last_name=intention["last_name"],
-            sex=intention["sex"],
+            gender=intention["gender"],
+            birthday=intention.get("birthday"),
             session_id=session_id,
             user_id=body.user_id,
             style=body.style,

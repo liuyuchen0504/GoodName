@@ -17,6 +17,7 @@ from service.db.message_op import MessageOp
 from service.db.name_op import NameOp
 from service.format_utils import user_msg, extract_json, system_msg, format_messages
 from service.llm_client import ask_llm
+from service.lunar_transfor import solar2lunar_chinese_str
 from service.model import Name
 from service.model.name import NameCreate
 from service.prompts import PromptFactory
@@ -46,7 +47,8 @@ class GoodNameService:
             session_id: str,
             user_id: str,       # 没啥用，只是 name 中需要
             last_name: str = None,
-            sex: str = None,
+            gender: str = None,
+            birthday: str = None,
             system_prompt: Optional[str] = None,
             style_prompt: Optional[Dict[str, str]] = None,
             style: List[str] = [],
@@ -70,8 +72,15 @@ class GoodNameService:
         styles = StyleSettings.get_selected_styles(style, style_prompt)
 
         # 4. Prompt
+        shengchenbazi = None
         if styles:
-            prompt_type = "good_name_default_prompt"
+            if "生辰八字" in styles:
+                if not birthday:
+                    return {"content": "请您提供出生日期"}
+                prompt_type = "good_name_shengchenbazi_prompt"
+                shengchenbazi = solar2lunar_chinese_str(birthday)
+            else:
+                prompt_type = "good_name_default_prompt"
         else:
             prompt_type = random.choice(["good_name_combine_prompt", "good_name_default_prompt"])
         prompt = PromptFactory.format_template(
@@ -84,7 +93,8 @@ class GoodNameService:
             unlike_names=unlike_names,
             current_like_name=current_like_name,
             last_name=last_name,
-            sex=sex,
+            gender=gender,
+            shengchenbazi=shengchenbazi,
             num=num
         )
 
@@ -110,7 +120,7 @@ class GoodNameService:
                     try:
                         if r.get("name") in had_names:
                             continue
-                        llm_names.append(NameCreate(**r, session_id=session_id, user_id=user_id))
+                        llm_names.append(NameCreate(**r, shengchengbazi=shengchenbazi, session_id=session_id, user_id=user_id))
                         had_names.append(r["name"])
                     except Exception as e:
                         logger.warning(f"[SAVE_NAME] name={r} error={e}")
