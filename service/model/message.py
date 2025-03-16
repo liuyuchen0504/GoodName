@@ -15,9 +15,6 @@ from service.model.utils import TimestampMixin
 
 
 class MessageBase(SQLModel):
-    class Config:
-        json_dumps = lambda x: x if isinstance(x, str) else json.dumps(x, ensure_ascii=False)
-
     role: str = Field(sa_column=Column(Enum(*MESSAGE_TYPE)))
     content: str = Field(description="消息内容", sa_column=Column("content", JSON))
 

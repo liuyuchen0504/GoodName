@@ -51,11 +51,12 @@ class _StyleSettings:
 
     def __init__(self):
         self._styles = {
-            "金庸风": "jinyong",
-            "琼瑶风": "qiongyao",
-            "文艺风": "artistic",
             "生辰八字": "birthdate",
             "家族辈份": "lineage",
+            "诗词古籍": "poetry",
+            "文艺风": "artistic",
+            "金庸风": "jinyong",
+            "琼瑶风": "qiongyao",
         }
 
     def get_selected_styles(self, styles: List[str]):

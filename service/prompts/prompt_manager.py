@@ -4,8 +4,11 @@
 # Date 2025/2/22
 # 
 # ====================
+import random
+from copy import copy
 from pathlib import Path
 
+import yaml
 from jinja2 import FileSystemLoader, Environment
 from pydantic import BaseModel
 
@@ -15,6 +18,23 @@ from service.lunar_transfor import solar2lunar_chinese_str
 _DEFAULT = "style_default"
 
 
+class _AncientBookCatalog(object):
+
+    def __init__(self):
+        with open(str(Path(__file__).absolute().parent / "ancient_book_catalog.yml")) as rf:
+            self._catalog = yaml.safe_load(rf)
+
+    @property
+    def all_catalog(self):
+        return [f"《{article}·{cata}》" for article, catalogs in self._catalog.items() for cata in catalogs]
+
+    def random_choice(self, n: int, by_classify: bool = False):
+        return random.sample(self.all_catalog, n)
+
+
+AncientBookCatalog = _AncientBookCatalog()
+
+
 class _PromptFactory:
 
     def __init__(self):
@@ -22,6 +42,7 @@ class _PromptFactory:
         _loader = FileSystemLoader(searchpath=file_dir)
         self._env = Environment(loader=_loader)
         self._env.globals["solar2lunar_chinese_str"] = solar2lunar_chinese_str
+        self._env.globals["random_choice_ancient_catalog"] = AncientBookCatalog.random_choice
 
     def format_template(self, prompt_name: str = _DEFAULT, **kwargs) -> str:
         if "num" not in kwargs:

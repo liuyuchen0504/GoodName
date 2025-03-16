@@ -16,9 +16,6 @@ from service.model.utils import TimestampMixin
 
 
 class NameBase(SQLModel):
-    class Config:
-        json_dumps = lambda x: x if isinstance(x, str) else json.dumps(x, ensure_ascii=False)
-
     name: str
     pinyin: Optional[str] = Field(default=None, description="名字拼音")
     gender: Optional[str] = Field(default="未知", include=["未知", "男孩", "女孩"], description="性别")

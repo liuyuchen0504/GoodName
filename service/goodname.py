@@ -76,7 +76,7 @@ class GoodNameService:
                     return {"content": "请您提供出生日期"}
             prompt_type = f"style_{list(styles_map.values())[0]}"
         else:
-            prompt_type = random.choice(["style_combine", "style_default", "style_artistic", "style_jinyong", "style_qiongyao"])
+            prompt_type = random.choice(["style_combine", "style_default", "style_artistic"])
         system_prompt = PromptFactory.format_template(
             prompt_name=prompt_type,
             styles=styles,
