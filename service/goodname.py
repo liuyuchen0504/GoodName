@@ -66,8 +66,9 @@ class GoodNameService:
 
         # 2. 获取所有历史对话信息
         history = await MessageOp.query_message_by_session_id(session=session, session_id=session_id)
-        if history[-1].role == "user" and history[-1].styles:
-            history[-1].content = f"{history[-1].content}\n风格要求：{history[-1].styles}"
+        for h in history:
+            if h.role == "user" and h.styles:
+                h.content = f"{h.content}\n风格要求：{'、'.join(h.styles)}"
 
         # 4. 获取选择的风格 Prompt
         if styles_map := StyleSettings.get_selected_styles(styles):

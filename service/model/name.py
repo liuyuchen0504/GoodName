@@ -60,10 +60,10 @@ class Name(NameBase, TimestampMixin, table=True):
             "pinyin": self.pinyin,
             "meaning": self.meaning
         }
-        if self.gender not in [None, "", "未知"]:
-            feature_dct["gender"] = self.gender
-        if self.style:
-            feature_dct["style"] = self.style
+        # if self.gender not in [None, "", "未知"]:
+        #     feature_dct["gender"] = self.gender
+        # if self.style:
+        #     feature_dct["style"] = self.style
         return feature_dct
 
 

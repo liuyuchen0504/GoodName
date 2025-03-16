@@ -7,9 +7,10 @@
 from typing import List, Union, Optional
 
 from fastapi import APIRouter, Depends, WebSocket
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.config import StyleSettings
 from service.db import get_asession
 from service.db.message_op import MessageOp
 from service.db.name_op import NameOp
@@ -82,6 +83,13 @@ class GenerateParam(BaseModel):
     num: int = Field(5, gt=0, description="名字数量")
     model: str = Field("deepseek-v3", description="模型")
     debug: bool = Field(False, description="是否 debug 模式")
+
+    @field_validator("style", mode="before")
+    @classmethod
+    def validate_style(cls, values):
+        assert all([s in StyleSettings.all_styles for s in values]), \
+            f"style only support {StyleSettings.all_styles}"
+        return values
 
 
 class NamesModel(BaseModel):
