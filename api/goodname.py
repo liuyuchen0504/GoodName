@@ -101,39 +101,7 @@ async def generate_names_ws(
     while True:
         body = await websocket.receive_json()
         body = GenerateParam(**body)
-        await MessageOp.insert_message(session, Message(**user_msg(body.query), session_id=session_id))
-        current_like_name = []
-        for a in body.attachment:
-            like = await NameOp.like_name_by_id(session, a.id)
-            current_like_name.append(like)
-
-        intention = await GoodNameService.check_and_intention(session=session, session_id=session_id)
-        # 异常情况
-        if isinstance(intention, str):
-            response = {"content": intention}
-        # 没有姓名和性别情况
-        elif intention.get("last_name") in [None, "", "无", "空"] or intention.get("gender") not in ["男孩", "女孩"]:
-            response = {"content": intention.get("reply")}
-            await websocket.send_json(DeltaMessage(type="message.delta", content=intention.get("reply")).model_dump())
-        # 正常情况
-        else:
-            response = await GoodNameService.generate_names(
-                session=session,
-                last_name=intention["last_name"],
-                gender=intention["gender"],
-                session_id=session_id,
-                user_id=body.user_id,
-                style=body.style,
-                current_like_name=current_like_name,
-                num=body.num,
-                model=body.model,
-                websocket=websocket,
-                debug=body.debug,
-            )
-
-        # 保存生成会话
-        content = response.get("content") or [n.to_dict() for n in response.get("names")]
-        await MessageOp.insert_message(session, Message(**assistant_msg(content), session_id=session_id))
+        await generate_names(session=session, session_id=session_id, body=body, websocket=websocket)
         await websocket.send_json(DeltaMessage(type="completion", content="DONE").model_dump())
 
 
@@ -143,9 +111,10 @@ async def generate_names(
         session: AsyncSession = Depends(get_asession),
         session_id: str,
         body: GenerateParam,
+        websocket: WebSocket = None # 本方法不支持流式，留给流式接口调用
 ):
     # 保存用户信息
-    await MessageOp.insert_message(session, Message(**user_msg(body.query), session_id=session_id))
+    await MessageOp.insert_message(session, Message(**user_msg(body.query), styles=body.style, session_id=session_id))
 
     current_like_name = []
     for a in body.attachment:
@@ -154,6 +123,7 @@ async def generate_names(
 
     intention = await GoodNameService.check_and_intention(session=session, session_id=session_id)
 
+    response = None
     # 异常情况
     if isinstance(intention, str):
         response = {"content": intention}
@@ -164,6 +134,10 @@ async def generate_names(
         response = {"content": intention.get("reply")}
     elif "家族辈份" in body.style and intention.get("family_word") in [None, "", "无"]:
         response = {"content": intention.get("reply")}
+
+    if response:
+        if websocket:
+            await websocket.send_json(DeltaMessage(type="message.delta", content=response.get("content")).model_dump())
     # 正常情况
     else:
         response = await GoodNameService.generate_names(
@@ -174,11 +148,12 @@ async def generate_names(
             family_word=intention.get("family_word"),
             session_id=session_id,
             user_id=body.user_id,
-            style=body.style,
+            styles=body.style,
             current_like_name=current_like_name,
             num=body.num,
             model=body.model,
             debug=body.debug,
+            websocket=websocket,
         )
 
     # 保存生成会话

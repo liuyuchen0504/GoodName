@@ -50,7 +50,7 @@ class GoodNameService:
             gender: str = None,
             birthdate: str = None,
             family_word: str = None,
-            style: List[str] = [],
+            styles: List[str] = [],
             current_like_name: List[Name] = [],
             model: str = "deepseek-v3",
             temperature: float = 1.0,
@@ -66,16 +66,15 @@ class GoodNameService:
 
         # 2. 获取所有历史对话信息
         history = await MessageOp.query_message_by_session_id(session=session, session_id=session_id)
+        if history[-1].role == "user" and history[-1].styles:
+            history[-1].content = f"{history[-1].content}\n风格要求：{history[-1].styles}"
 
-        # 3. 获取选择的风格，目前只支持单风格
-        styles = StyleSettings.get_selected_styles(style)
-
-        # 4. Prompt
-        if styles:
-            if "生辰八字" in styles:
+        # 4. 获取选择的风格 Prompt
+        if styles_map := StyleSettings.get_selected_styles(styles):
+            if "生辰八字" in styles_map:
                 if not birthdate:
                     return {"content": "请您提供出生日期"}
-            prompt_type = f"style_{list(styles.values())[0]}"
+            prompt_type = f"style_{list(styles_map.values())[0]}"
         else:
             prompt_type = random.choice(["style_combine", "style_default", "style_artistic", "style_jinyong", "style_qiongyao"])
         system_prompt = PromptFactory.format_template(
@@ -92,6 +91,8 @@ class GoodNameService:
         messages = [system_msg(system_prompt)] + format_messages(history)
 
         # 4. 调用大模型
+        if not model:
+            model = random.choice(["doubao-1.5-pro-32k", "deepseek-v3"])
         response = await ask_llm(
             model=LLMSettings.get_model(model),
             messages=messages,
@@ -112,7 +113,11 @@ class GoodNameService:
                         if r.get("name") in had_names:
                             continue
                         if "生辰八字" in styles and birthdate:
-                            r["shengchengbazi"] = solar2lunar_chinese_str(birthdate)
+                            r["shengchenbazi"] = solar2lunar_chinese_str(birthdate)
+                        if "家族辈份" in styles and family_word:
+                            r["family_word"] = family_word
+                        r["style"] = styles
+                        r["gender"] = gender
                         llm_names.append(NameCreate(**r, session_id=session_id, user_id=user_id))
                         had_names.append(r["name"])
                     except Exception as e:

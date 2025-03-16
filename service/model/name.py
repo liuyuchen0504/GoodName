@@ -4,6 +4,7 @@
 # Date 2025/2/15
 # 
 # ====================
+import json
 from typing import Optional, List, Dict, Any
 
 from pydantic import computed_field
@@ -15,15 +16,17 @@ from service.model.utils import TimestampMixin
 
 
 class NameBase(SQLModel):
+    class Config:
+        json_dumps = lambda x: x if isinstance(x, str) else json.dumps(x, ensure_ascii=False)
+
     name: str
     pinyin: Optional[str] = Field(default=None, description="名字拼音")
+    gender: Optional[str] = Field(default="未知", include=["未知", "男孩", "女孩"], description="性别")
     meaning: Optional[str] = Field(default=None, description="寓意")
-    shengchengbazi: Optional[str] = Field(default=None, description="生辰八字")
-    wuxingbagua: Optional[str] = Field(default=None, description="五行八卦")
-    jiazubeifen: Optional[str] = Field(default=None, description="家族辈份")
+    shengchenbazi: Optional[str] = Field(default=None, description="生辰八字")
+    family_word: Optional[str] = Field(default=None, description="家族辈份")
     # 风格
-    style: Optional[List[str]] = Field(default=[],
-                                       sa_column=Column("style", JSON))
+    style: Optional[List[str]] = Field(default=[], sa_column=Column("style", JSON))
 
 
 class Name(NameBase, TimestampMixin, table=True):
@@ -32,6 +35,7 @@ class Name(NameBase, TimestampMixin, table=True):
     __table_args__ = (
         UniqueConstraint("session_id", "name", name="unique_session_id_name"),
         Index("name_idx", "name"),
+        Index("gender_idx", "gender"),
         Index("user_id_idx", "user_id"),
         Index("name_session_id_idx", "session_id"),
         Index("is_valid_idx", "is_valid"),
@@ -54,11 +58,16 @@ class Name(NameBase, TimestampMixin, table=True):
         return name_str
 
     def to_dict(self):
-        return {
+        feature_dct = {
             "name": self.name,
             "pinyin": self.pinyin,
             "meaning": self.meaning
         }
+        if self.gender not in [None, "", "未知"]:
+            feature_dct["gender"] = self.gender
+        if self.style:
+            feature_dct["style"] = self.style
+        return feature_dct
 
 
 class NameCreate(NameBase):
@@ -75,10 +84,8 @@ class NameView(NameBase):
     @property
     def feature(self) -> List[Dict[str, Any]]:
         feat = []
-        if self.shengchengbazi:
-            feat.append({"生辰八字": self.shengchengbazi})
-        if self.wuxingbagua:
-            feat.append({"五行八卦": self.wuxingbagua})
-        if self.jiazubeifen:
-            feat.append({"家族辈份": self.jiazubeifen})
+        if self.shengchenbazi:
+            feat.append({"生辰八字": self.shengchenbazi})
+        if self.family_word:
+            feat.append({"家族辈份": self.family_word})
         return feat

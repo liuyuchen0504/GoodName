@@ -60,7 +60,7 @@ class _StyleSettings:
 
     def get_selected_styles(self, styles: List[str]):
         if not styles:
-            return None
+            return {}
         return {k: v for k, v in self._styles.items() if k in styles}
 
     @property
