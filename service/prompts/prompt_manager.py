@@ -12,6 +12,7 @@ import yaml
 from jinja2 import FileSystemLoader, Environment
 from pydantic import BaseModel
 
+from config.books import TangPoetryCollection
 from service.lunar_transfor import solar2lunar_chinese_str
 
 
@@ -43,6 +44,7 @@ class _PromptFactory:
         self._env = Environment(loader=_loader)
         self._env.globals["solar2lunar_chinese_str"] = solar2lunar_chinese_str
         self._env.globals["random_choice_ancient_catalog"] = AncientBookCatalog.random_choice
+        self._env.globals["poetries"] = TangPoetryCollection.random
 
     def format_template(self, prompt_name: str = _DEFAULT, **kwargs) -> str:
         if "num" not in kwargs:

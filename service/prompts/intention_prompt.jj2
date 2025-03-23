@@ -18,6 +18,6 @@
 
 {% for m in messages -%}
 {%- if m.role == 'user' %}
-用户：{{ m.content }} {% if m.styles %}{{ m.styles }}{% endif %}
+用户：{% if m.context %}{{ m.context }}。{% endif %}{{ m.content }}
 {% endif -%}
 {%- endfor %}

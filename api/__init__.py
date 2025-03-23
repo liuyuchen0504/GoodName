@@ -7,10 +7,12 @@
 from fastapi import APIRouter
 from api import config
 from api import goodname
+from api import message
 
 api_router = APIRouter(prefix="/api")
 
 
 api_router.include_router(config.router, prefix="/config", tags=["config"])
 api_router.include_router(goodname.router, prefix="/goodname", tags=["goodname"])
+api_router.include_router(message.router, prefix="/message", tags=["message"])
 

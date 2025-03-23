@@ -48,6 +48,7 @@ class NameOp:
             user_id: str = None,
             session_id: str = None,
             is_valid: bool = True,
+            is_star: Optional[bool] = None,
             prefer: Optional[List[str]] = None,
             limit: int = 0
     ) -> Sequence[Name]:
@@ -62,6 +63,8 @@ class NameOp:
             statement = statement.where(Name.session_id == session_id)
         if is_valid is not None:
             statement = statement.where(Name.is_valid == is_valid)
+        if is_star is not None:
+            statement = statement.where(Name.is_star == is_star)
         if prefer:
             statement = statement.filter(Name.prefer.in_(prefer))
         if limit > 0:

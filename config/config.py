@@ -53,7 +53,7 @@ class _StyleSettings:
         self._styles = {
             "生辰八字": "birthdate",
             "家族辈份": "lineage",
-            "诗词古籍": "poetry",
+            "诗词典籍": "poetry",
             "文艺风": "artistic",
             "金庸风": "jinyong",
             "琼瑶风": "qiongyao",

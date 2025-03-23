@@ -4,20 +4,21 @@
 # Date 2025/2/15
 # 
 # ====================
-import json
-from typing import Optional, List
+from typing import Optional, Literal
 
-from sqlalchemy import Column, Index, Enum, JSON
+from sqlmodel import Column, Index, Enum, JSON
 from sqlmodel import SQLModel, Field
 
 from service.const import MESSAGE_TYPE
+from service.model.name import NameView
+from service.model.params import BasicInfo, BasicInfoType
 from service.model.utils import TimestampMixin
 
 
 class MessageBase(SQLModel):
     role: str = Field(sa_column=Column(Enum(*MESSAGE_TYPE)))
-    content: str = Field(description="消息内容", sa_column=Column("content", JSON))
-
+    content: str = Field(description="消息内容", sa_column=Column(JSON))
+    content_type: Literal["text", "card"] = Field(default="text", sa_column=Column(Enum("text", "card")))
 
 
 class Message(MessageBase, TimestampMixin, table=True):
@@ -30,7 +31,8 @@ class Message(MessageBase, TimestampMixin, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     session_id: str
-    styles: List[str] = Field(default=None, sa_column=Column("styles", JSON))
+    context: BasicInfo = Field(default=BasicInfo(), sa_column=Column(BasicInfoType))
+    attachment: Optional[NameView] = Field(default=None, sa_column=Column(JSON))
 
     def __str__(self):
         return f"{self.role}: {self.content}"

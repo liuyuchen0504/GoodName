@@ -4,22 +4,23 @@
 # Date 2025/2/15
 # 
 # ====================
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Literal
 
-from fastapi import APIRouter, Depends, WebSocket
-from pydantic import BaseModel, Field, field_validator
+from fastapi import APIRouter, Depends, WebSocket, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
-from config.config import StyleSettings
 from service.db import get_asession
 from service.db.message_op import MessageOp
 from service.db.name_op import NameOp
+from service.db.paginate import paginate_query, PageResponse
 from service.format_utils import user_msg, assistant_msg
 from service.goodname import GoodNameService
 from service.llm_client import DeltaMessage
 from service.middleware import LoggingWebRoute
 from service.model import Message
-from service.model.name import NameView
+from service.model.name import NameView, Name
+from service.model.params import GenerateRequest, GenerateResponse
 
 router = APIRouter(route_class=LoggingWebRoute)
 
@@ -75,28 +76,6 @@ async def list_names(
     return await NameOp.query_name_by_session_id(session=session, session_id=session_id, is_valid=is_valid, limit=limit)
 
 
-class GenerateParam(BaseModel):
-    user_id: str
-    query: str
-    style: List[str] = Field([], description="风格")
-    attachment: Optional[List[NameView]] = Field([], description="姓名卡片")
-    num: int = Field(5, gt=0, description="名字数量")
-    model: str = Field("deepseek-v3", description="模型")
-    debug: bool = Field(False, description="是否 debug 模式")
-
-    @field_validator("style", mode="before")
-    @classmethod
-    def validate_style(cls, values):
-        assert all([s in StyleSettings.all_styles for s in values]), \
-            f"style only support {StyleSettings.all_styles}"
-        return values
-
-
-class NamesModel(BaseModel):
-    names: Optional[List[NameView]] = None
-    content: Optional[str] = None
-
-
 @router.websocket("/ws/{session_id}/name")
 async def generate_names_ws(
         websocket: WebSocket,
@@ -108,40 +87,40 @@ async def generate_names_ws(
 
     while True:
         body = await websocket.receive_json()
-        body = GenerateParam(**body)
+        body = GenerateRequest(**body)
         await generate_names(session=session, session_id=session_id, body=body, websocket=websocket)
         await websocket.send_json(DeltaMessage(type="completion", content="DONE").model_dump())
 
 
-@router.post("/{session_id}/name",  response_model=NamesModel)
+@router.post("/{session_id}/name",  response_model=GenerateResponse)
 async def generate_names(
         *,
         session: AsyncSession = Depends(get_asession),
         session_id: str,
-        body: GenerateParam,
+        body: GenerateRequest,
         websocket: WebSocket = None # 本方法不支持流式，留给流式接口调用
 ):
     # 保存用户信息
-    await MessageOp.insert_message(session, Message(**user_msg(body.query), styles=body.style, session_id=session_id))
+    await MessageOp.insert_message(session, Message(**user_msg(body.query), context=body.context, session_id=session_id))
 
     current_like_name = []
     for a in body.attachment:
         like = await NameOp.like_name_by_id(session, a.id)
         current_like_name.append(like)
 
-    intention = await GoodNameService.check_and_intention(session=session, session_id=session_id)
+    intention = await GoodNameService.check_and_intention(session=session, session_id=session_id, basic_info=body.context)
 
     response = None
     # 异常情况
     if isinstance(intention, str):
         response = {"content": intention}
     # 没有姓名和性别情况
-    elif intention.get("last_name") in [None, "", "无", "空"] or intention.get("gender") not in ["男孩", "女孩"]:
-        response = {"content": intention.get("reply")}
-    elif "生辰八字" in body.style and intention.get("birthdate") in [None, "", "无", "空"]:
-        response = {"content": intention.get("reply")}
-    elif "家族辈份" in body.style and intention.get("family_word") in [None, "", "无"]:
-        response = {"content": intention.get("reply")}
+    elif intention.last_name in [None, "", "无", "空"] or intention.gender not in ["男孩", "女孩"]:
+        response = {"content": intention.reply}
+    elif "生辰八字" in body.context.styles and intention.birthdate in [None, "", "无", "空"]:
+        response = {"content": intention.reply}
+    elif "家族辈份" in body.context.styles and intention.family_word in [None, "", "无"]:
+        response = {"content": intention.reply}
 
     if response:
         if websocket:
@@ -150,29 +129,64 @@ async def generate_names(
     else:
         response = await GoodNameService.generate_names(
             session=session,
-            last_name=intention["last_name"],
-            gender=intention["gender"],
-            birthdate=intention.get("birthdate"),
-            family_word=intention.get("family_word"),
+            context=intention,
             session_id=session_id,
             user_id=body.user_id,
-            styles=body.style,
             current_like_name=current_like_name,
             num=body.num,
             model=body.model,
-            debug=body.debug,
             websocket=websocket,
         )
 
     # 保存生成会话
     content = response.get("content") or [n.to_dict() for n in response.get("names")]
-    await MessageOp.insert_message(session, Message(**assistant_msg(content), session_id=session_id))
+    content_type = "card" if response.get("names") else "text"
+    await MessageOp.insert_message(session, Message(**assistant_msg(content), content_type=content_type, session_id=session_id))
 
     if names := response.get("names"):
         for n in names:
             await session.refresh(n)
 
     return response
+
+
+@router.post("/{session_id}/collect")
+async def collect_names(
+        *,
+        session: AsyncSession = Depends(get_asession),
+        session_id: str,
+        body: List[Name],
+):
+    statement = select(Name).where(Name.session_id == session_id)\
+        .where(Name.id.in_([n.id for n in body]))
+    names = (await session.execute(statement)).scalars().all()
+    for n in names:
+        n.is_star = True
+        session.add(n)
+    await session.commit()
+    return {"code": 200, "message": "success"}
+
+
+@router.get("/{session_id}/collect", response_model=PageResponse)
+async def list_collect_names(
+        *,
+        session: AsyncSession = Depends(get_asession),
+        session_id: str,
+        page: int = Query(default=1, ge=0, description="页"),
+        size: int = Query(10, gt=0, le=100, description="每页数量"),
+        sort_by: Optional[str] = Query(None, description="排序字段"),
+        order: Literal["asc", "desc"] = Query("asc", description="排序方式"),
+) -> PageResponse[Name]:
+    statement = select(Name).where(Name.session_id == session_id).where(Name.is_star == True)
+    return await paginate_query(
+        session=session,
+        query=statement,
+        table=Name,
+        page=page,
+        size=size,
+        sort_by=sort_by,
+        order=order
+    )
 
 
 @router.delete("/{session_id}/name/{name_id}", response_model=Union[NameView, None])

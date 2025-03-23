@@ -5,7 +5,7 @@
 # 
 # ====================
 import random
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 
 from loguru import logger
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,6 +20,7 @@ from service.llm_client import ask_llm
 from service.lunar_transfor import solar2lunar_chinese_str
 from service.model import Name
 from service.model.name import NameCreate
+from service.model.params import BasicInfo
 from service.prompts import PromptFactory
 
 
@@ -29,15 +30,25 @@ class GoodNameService:
     async def check_and_intention(
             session: AsyncSession,
             session_id: str,
+            basic_info: BasicInfo = None,
             model: str = "deepseek-v3"
-    ) -> Dict[str, str]:
+    ) -> Union[BasicInfo, str]:
         history = await MessageOp.query_message_by_session_id(session=session, session_id=session_id)
         prompt = PromptFactory.format_template(prompt_name="intention_prompt", messages=history)
         response = await ask_llm(
             model=LLMSettings.get_model(model),
             messages=[user_msg(prompt)],
         )
-        return extract_json(response.content)
+        intention = extract_json(response.content)
+        if isinstance(intention, str):
+            return intention
+        elif isinstance(intention, dict):
+            if not basic_info:
+                return BasicInfo(**intention)
+            else:
+                return BasicInfo(**{**basic_info.model_dump(), **intention})
+        else:
+            raise TypeError(f"Intention must be str or BasicInfo.")
 
 
     @classmethod
@@ -46,17 +57,12 @@ class GoodNameService:
             session: AsyncSession,
             session_id: str,
             user_id: str,       # 没啥用，只是 name 中需要
-            last_name: str = None,
-            gender: str = None,
-            birthdate: str = None,
-            family_word: str = None,
-            styles: List[str] = [],
+            context: BasicInfo = BasicInfo(),
             current_like_name: List[Name] = [],
             model: str = "deepseek-v3",
             temperature: float = 1.0,
             num: int = 5,
             websocket: WebSocket = None,
-            debug: bool = False,
             **kwargs
     ) -> Dict[str, Any]:
         # 1. 获取所有已经生成的名字
@@ -67,25 +73,31 @@ class GoodNameService:
         # 2. 获取所有历史对话信息
         history = await MessageOp.query_message_by_session_id(session=session, session_id=session_id)
         for h in history:
-            if h.role == "user" and h.styles:
-                h.content = f"{h.content}\n风格要求：{'、'.join(h.styles)}"
+            if h.role == "user":
+                content = ""
+                if h.context:
+                    content += f"{h.context}"
+                if current_like_name:
+                    content += f"\n 请你针对如下姓名：\n{current_like_name}"
+                if content:
+                    h.content = f"{content}\n{h.content}"
 
         # 4. 获取选择的风格 Prompt
-        if styles_map := StyleSettings.get_selected_styles(styles):
+        if styles_map := StyleSettings.get_selected_styles(context.styles):
             if "生辰八字" in styles_map:
-                if not birthdate:
+                if not context.birthdate:
                     return {"content": "请您提供出生日期"}
             prompt_type = f"style_{list(styles_map.values())[0]}"
         else:
             prompt_type = random.choice(["style_combine", "style_default", "style_artistic"])
         system_prompt = PromptFactory.format_template(
             prompt_name=prompt_type,
-            styles=styles,
+            styles=context.styles,
             names=names,
-            last_name=last_name,
-            gender=gender,
-            family_word=family_word,
-            birthdate=birthdate,
+            last_name=context.last_name,
+            gender=context.gender,
+            family_word=context.family_word,
+            birthdate=context.birthdate,
             num=num
         )
 
@@ -104,7 +116,7 @@ class GoodNameService:
         # 5. 解析结果
         result = extract_json(response.content, r"\[.*\]")
         if isinstance(result, str):
-            return {"content": response.content, "prompt": system_prompt if debug else None}
+            return {"content": response.content}
         else:
             llm_names = []
             if result:
@@ -113,12 +125,12 @@ class GoodNameService:
                     try:
                         if r.get("name") in had_names:
                             continue
-                        if "生辰八字" in styles and birthdate:
-                            r["shengchenbazi"] = solar2lunar_chinese_str(birthdate)
-                        if "家族辈份" in styles and family_word:
-                            r["family_word"] = family_word
-                        r["style"] = styles
-                        r["gender"] = gender
+                        if "生辰八字" in context.styles and context.birthdate:
+                            r["shengchenbazi"] = solar2lunar_chinese_str(context.birthdate)
+                        if "家族辈份" in context.styles and context.family_word:
+                            r["family_word"] = context.family_word
+                        r["styles"] = context.styles
+                        r["gender"] = context.gender
                         llm_names.append(NameCreate(**r, session_id=session_id, user_id=user_id))
                         had_names.append(r["name"])
                     except Exception as e:
@@ -130,4 +142,4 @@ class GoodNameService:
 
             for n in new_names:
                 await session.refresh(n)
-            return {"names": new_names, "prompt": system_prompt if debug else None}
+            return {"names": new_names}

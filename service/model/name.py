@@ -4,7 +4,6 @@
 # Date 2025/2/15
 # 
 # ====================
-import json
 from typing import Optional, List, Dict, Any
 
 from pydantic import computed_field
@@ -23,7 +22,8 @@ class NameBase(SQLModel):
     shengchenbazi: Optional[str] = Field(default=None, description="生辰八字")
     family_word: Optional[str] = Field(default=None, description="家族辈份")
     # 风格
-    style: Optional[List[str]] = Field(default=[], sa_column=Column("style", JSON))
+    styles: Optional[List[str]] = Field(default=[], sa_column=Column(JSON))
+    is_star: Optional[bool] = Field(default=False, description="收藏")
 
 
 class Name(NameBase, TimestampMixin, table=True):
