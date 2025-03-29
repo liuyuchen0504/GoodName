@@ -8,6 +8,7 @@ import random
 from typing import List, Dict, Any, Union
 
 from loguru import logger
+from pypinyin import pinyin
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import WebSocket
 
@@ -34,7 +35,7 @@ class GoodNameService:
             model: str = "deepseek-v3"
     ) -> Union[BasicInfo, str]:
         history = await MessageOp.query_message_by_session_id(session=session, session_id=session_id)
-        prompt = PromptFactory.format_template(prompt_name="intention_prompt", messages=history)
+        prompt = PromptFactory.format_template(prompt_name="intention_prompt", messages=history, context=basic_info)
         response = await ask_llm(
             model=LLMSettings.get_model(model),
             messages=[user_msg(prompt)],
@@ -72,15 +73,10 @@ class GoodNameService:
 
         # 2. 获取所有历史对话信息
         history = await MessageOp.query_message_by_session_id(session=session, session_id=session_id)
-        for h in history:
-            if h.role == "user":
-                content = ""
-                if h.context:
-                    content += f"{h.context}"
-                if current_like_name:
-                    content += f"\n 请你针对如下姓名：\n{current_like_name}"
-                if content:
-                    h.content = f"{content}\n{h.content}"
+        history = MessageOp.process_history(
+            history, context=context, current_like_name=current_like_name,
+            like_names=like_names, unlike_names=unlike_names, names=names
+        )
 
         # 4. 获取选择的风格 Prompt
         if styles_map := StyleSettings.get_selected_styles(context.styles):
@@ -105,7 +101,7 @@ class GoodNameService:
 
         # 4. 调用大模型
         if not model:
-            model = random.choice(["doubao-1.5-pro-32k", "deepseek-v3"])
+            model = random.choice(["deepseek-v3"])
         response = await ask_llm(
             model=LLMSettings.get_model(model),
             messages=messages,
@@ -118,11 +114,13 @@ class GoodNameService:
         if isinstance(result, str):
             return {"content": response.content}
         else:
-            llm_names = []
+            new_names = []
             if result:
                 had_names = []
                 for r in result:
                     try:
+                        if not r.get("name").startswith(context.last_name):
+                            r["name"] = f"{context.last_name}{r['name']}"
                         if r.get("name") in had_names:
                             continue
                         if "生辰八字" in context.styles and context.birthdate:
@@ -131,14 +129,15 @@ class GoodNameService:
                             r["family_word"] = context.family_word
                         r["styles"] = context.styles
                         r["gender"] = context.gender
-                        llm_names.append(NameCreate(**r, session_id=session_id, user_id=user_id))
+                        r["pinyin"] = " ".join([p[0] for p in pinyin(r["name"])])
+                        new_names.append(NameCreate(**r, last_name=context.last_name, session_id=session_id, user_id=user_id))
                         had_names.append(r["name"])
                     except Exception as e:
                         logger.warning(f"[SAVE_NAME] name={r} error={e}")
 
-            logger.info(f"[GENERATE_NAME] session={session_id} {llm_names}")
+            logger.info(f"[GENERATE_NAME] session={session_id} {new_names}")
             # 6. 保存 name
-            new_names = await NameOp.insert_names(session, llm_names)
+            new_names = await NameOp.insert_names(session, new_names)
 
             for n in new_names:
                 await session.refresh(n)

@@ -6,7 +6,7 @@
 # ====================
 from typing import Optional, List, Dict, Any
 
-from pydantic import computed_field
+from pydantic import computed_field, BaseModel
 from sqlalchemy import UniqueConstraint, Column, JSON, Index, Enum
 from sqlmodel import SQLModel, Field
 
@@ -14,8 +14,9 @@ from service.const import PREFER_TYPE
 from service.model.utils import TimestampMixin
 
 
-class NameBase(SQLModel):
-    name: str
+class NameBase(BaseModel):
+    name: str = Field(description="姓名")
+    last_name: str = Field(description="姓氏")
     pinyin: Optional[str] = Field(default=None, description="名字拼音")
     gender: Optional[str] = Field(default="未知", include=["未知", "男孩", "女孩"], description="性别")
     meaning: Optional[str] = Field(default=None, description="寓意")
@@ -24,6 +25,12 @@ class NameBase(SQLModel):
     # 风格
     styles: Optional[List[str]] = Field(default=[], sa_column=Column(JSON))
     is_star: Optional[bool] = Field(default=False, description="收藏")
+
+    def __str__(self):
+        name_str = self.name
+        if self.meaning:
+            name_str += f"：{self.meaning}"
+        return name_str
 
 
 class Name(NameBase, TimestampMixin, table=True):
@@ -46,24 +53,11 @@ class Name(NameBase, TimestampMixin, table=True):
     is_valid: Optional[bool] = Field(default=True)
     prefer: str = Field(default="unknown", sa_column=Column(Enum(*PREFER_TYPE)))
 
-    def __str__(self):
-        name_str = self.name
-        if self.pinyin:
-            name_str += f"（{self.pinyin}）"
-        if self.meaning:
-            name_str += f"：表达了{self.meaning}"
-        return name_str
-
     def to_dict(self):
         feature_dct = {
             "name": self.name,
-            "pinyin": self.pinyin,
             "meaning": self.meaning
         }
-        # if self.gender not in [None, "", "未知"]:
-        #     feature_dct["gender"] = self.gender
-        # if self.style:
-        #     feature_dct["style"] = self.style
         return feature_dct
 
 

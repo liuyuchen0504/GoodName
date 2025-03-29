@@ -8,13 +8,13 @@ from typing import List, Union, Optional, Literal
 
 from fastapi import APIRouter, Depends, WebSocket, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, update
 
 from service.db import get_asession
 from service.db.message_op import MessageOp
 from service.db.name_op import NameOp
 from service.db.paginate import paginate_query, PageResponse
-from service.format_utils import user_msg, assistant_msg
+from service.format_utils import user_msg
 from service.goodname import GoodNameService
 from service.llm_client import DeltaMessage
 from service.middleware import LoggingWebRoute
@@ -139,9 +139,11 @@ async def generate_names(
         )
 
     # 保存生成会话
-    content = response.get("content") or [n.to_dict() for n in response.get("names")]
-    content_type = "card" if response.get("names") else "text"
-    await MessageOp.insert_message(session, Message(**assistant_msg(content), content_type=content_type, session_id=session_id))
+    await MessageOp.insert_message(session, Message(
+        role="assistant",
+        content=response.get("content") or response.get("names"),
+        content_type="text" if response.get("content") else "card",
+        session_id=session_id))
 
     if names := response.get("names"):
         for n in names:
@@ -155,14 +157,10 @@ async def collect_names(
         *,
         session: AsyncSession = Depends(get_asession),
         session_id: str,
-        body: List[Name],
+        body: List[int],
 ):
-    statement = select(Name).where(Name.session_id == session_id)\
-        .where(Name.id.in_([n.id for n in body]))
-    names = (await session.execute(statement)).scalars().all()
-    for n in names:
-        n.is_star = True
-        session.add(n)
+    statement = update(Name).where(Name.id.in_(body)).values(is_star=True)
+    await session.execute(statement)
     await session.commit()
     return {"code": 200, "message": "success"}
 

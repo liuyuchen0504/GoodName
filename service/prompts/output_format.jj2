@@ -5,11 +5,8 @@
 [
     {
         "name": "<姓名>",
-        "pinyin": "<拼音>",
         {% if styles and '生辰八字' in styles -%}
         "meaning": "<生成五行缺属、喜用神和专业命理知识对姓名的解释>"
-        {%- elif styles and '诗词典籍' in styles -%}
-        "meaning": "<名字引用的典籍出处：题目、作者和名字出处的诗句>"
         {%- else -%}
         "meaning": "<寓意。给出名字的美好寓意>"
         {%- endif %}
