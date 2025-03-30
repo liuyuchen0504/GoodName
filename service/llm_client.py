@@ -13,9 +13,11 @@ from openai import OpenAI
 from fastapi import WebSocket
 from openai.types.chat import ChatCompletionMessage
 from pydantic import BaseModel
+from pypinyin import pinyin
 
 from config.config import LLMSettings
 from service.model.card import Card, NameCard
+from service.model.params import BasicInfo
 
 llm_client = OpenAI(base_url=LLMSettings.BASE_URL, api_key=LLMSettings.API_KEY)
 
@@ -40,6 +42,7 @@ async def ask_llm(
         temperature: float = 1.0,
         stream: bool = True,
         websocket: WebSocket = None,
+        context: BasicInfo = None,
         **kwargs,
 ):
     logger.info(f"[LLMRequest] model={model}, messages={messages}")
@@ -60,7 +63,11 @@ async def ask_llm(
             current_card += delta.content
             if matcher := re.search(r"\{.*\}", current_card, re.S):
                 if websocket:
-                    card = NameCard(data=json.loads(matcher.group(0)))
+                    name = json.loads(matcher.group(0))
+                    if not name["name"].startswith(context.last_name):
+                        name["name"] = f"{context.last_name}{name['name']}"
+                    name["pinyin"] = " ".join([p[0] for p in pinyin(name["name"])])
+                    card = NameCard(data=name)
                     await websocket.send_json(DeltaMessage(type="message.delta", card=card).model_dump())
                     current_card = current_card.split("}")[-1]
         # openai client 暂时不支持

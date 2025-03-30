@@ -106,6 +106,7 @@ class GoodNameService:
             model=LLMSettings.get_model(model),
             messages=messages,
             temperature=temperature,
+            context=context,
             websocket=websocket,
         )
 
