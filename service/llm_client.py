@@ -31,7 +31,7 @@ class ReasoningChatCompletionMessage(ChatCompletionMessage):
 
 
 class DeltaMessage(BaseModel):
-    type: Literal["message.delta", "action", "completion"]
+    type: Literal["message.delta", "action", "completion", "ping"]
     content: Optional[str] = None
     card: Optional[Card] = None
 

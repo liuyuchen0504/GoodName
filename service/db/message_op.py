@@ -71,6 +71,8 @@ class MessageOp:
             unlike_names: List[Name]=None,
             names: List[Name] = None,
             **kwargs) -> List[Message]:
+        # 只加载同风格的上下文
+        messages = [msg for msg in messages if msg.context and msg.context.styles[0] in context.styles]
         messages = [MessageBase(**msg.model_dump()) for msg in messages]
         # 诗词典籍 不能出现姓名相关的词，不然模型会陷入固有模式，因此不用历史消息
         if "诗词典籍" in context.styles:

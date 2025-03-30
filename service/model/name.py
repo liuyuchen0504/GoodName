@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any
 
 from pydantic import computed_field, BaseModel
 from sqlalchemy import UniqueConstraint, Column, JSON, Index, Enum
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field
 
 from service.const import PREFER_TYPE
 from service.model.utils import TimestampMixin
@@ -16,7 +16,7 @@ from service.model.utils import TimestampMixin
 
 class NameBase(BaseModel):
     name: str = Field(description="姓名")
-    last_name: str = Field(description="姓氏")
+    last_name: Optional[str] = Field(default=None, description="姓氏")
     pinyin: Optional[str] = Field(default=None, description="名字拼音")
     gender: Optional[str] = Field(default="未知", include=["未知", "男孩", "女孩"], description="性别")
     meaning: Optional[str] = Field(default=None, description="寓意")

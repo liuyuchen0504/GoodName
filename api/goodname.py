@@ -87,6 +87,9 @@ async def generate_names_ws(
 
     while True:
         body = await websocket.receive_json()
+        if body.get("type") == "ping":
+            await websocket.send_json(DeltaMessage(type="ping", content="DONE").model_dump())
+            continue
         body = GenerateRequest(**body)
         await generate_names(session=session, session_id=session_id, body=body, websocket=websocket)
         await websocket.send_json(DeltaMessage(type="completion", content="DONE").model_dump())
@@ -143,6 +146,7 @@ async def generate_names(
         role="assistant",
         content=response.get("content") or response.get("names"),
         content_type="text" if response.get("content") else "card",
+        context=body.context,
         session_id=session_id))
 
     if names := response.get("names"):
@@ -185,6 +189,20 @@ async def list_collect_names(
         sort_by=sort_by,
         order=order
     )
+
+
+@router.delete("/{session_id}/collect/{name_id}", response_model=Union[NameView, None])
+async def cancel_collect(
+        *,
+        session: AsyncSession = Depends(get_asession),
+        session_id: str,
+        name_id: int
+):
+    statement = update(Name).where(Name.id == name_id).values(is_star=False)
+    await session.execute(statement)
+    await session.commit()
+    await NameOp.query_name_by_id(session, name_id)
+    return await NameOp.query_name_by_id(session, name_id)
 
 
 @router.delete("/{session_id}/name/{name_id}", response_model=Union[NameView, None])
