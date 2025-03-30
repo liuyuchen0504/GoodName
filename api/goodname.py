@@ -65,16 +65,6 @@ async def generate_names_ws():
     from fastapi.responses import HTMLResponse
     return HTMLResponse(html)
 
-@router.get("/{session_id}/name", response_model=List[Union[NameView, None]])
-async def list_names(
-        *,
-        session: AsyncSession = Depends(get_asession),
-        session_id: str,
-        is_valid: bool = True,
-        limit: int = 100,
-):
-    return await NameOp.query_name_by_session_id(session=session, session_id=session_id, is_valid=is_valid, limit=limit)
-
 
 @router.websocket("/ws/{session_id}/name")
 async def generate_names_ws(
@@ -154,6 +144,28 @@ async def generate_names(
             await session.refresh(n)
 
     return response
+
+
+@router.get("/{session_id}/name", response_model=List[Union[NameView, None]])
+async def list_names(
+        *,
+        session: AsyncSession = Depends(get_asession),
+        session_id: str,
+        is_valid: bool = True,
+        limit: int = 100,
+):
+    return await NameOp.query_name_by_session_id(session=session, session_id=session_id, is_valid=is_valid, limit=limit)
+
+
+@router.get("/{session_id}/name/{name}", response_model=Union[NameView, None])
+async def query_name_by_name(
+        *,
+        session: AsyncSession = Depends(get_asession),
+        session_id: str,
+        name: str,
+):
+    stat = select(Name).where(Name.session_id==session_id).where(Name.name==name)
+    return (await session.execute(stat)).scalar()
 
 
 @router.post("/{session_id}/collect")
