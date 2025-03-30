@@ -100,7 +100,7 @@ def format_message(
             if context.reply not in [None, "", "无"]:
                 message.content = context.reply
             if current_like_name:
-                message.content = f"针对次意象：{str(current_like_name[0])}\n\n{message.content}"
+                message.content = f"针对此意象：{str(current_like_name[0])}\n\n{message.content}"
             names = [n for n in names if re.match(r".*『(.*)』.*", n.meaning)]
             if names:
                 names_format = ""
@@ -117,10 +117,8 @@ def format_message(
                 message.content = _remove_last_name(message.content)
     else:
         if message.role == "user":
-            content = f"{message.context or ''}"
             if current_like_name:
-                content += f"\n请你针对如下姓名：\n{current_like_name}"
-            message.content = f"{content}\n{message.content}"
+                message.content = f"\n请你针对如下姓名：\n{current_like_name}\n{message.content}"
     return message
 
 
