@@ -15,6 +15,7 @@ from sqlmodel import select
 from service.db.paginate import paginate_query, PageResponse
 from service.model import Message, Name
 from service.model.message import MessageBase
+from service.model.name import NameBase
 from service.model.params import BasicInfo
 
 
@@ -77,8 +78,8 @@ class MessageOp:
         # 诗词典籍 不能出现姓名相关的词，不然模型会陷入固有模式，因此不用历史消息
         if "诗词典籍" in context.styles:
             messages = messages[-1:]
-        for message in messages:
-            format_message(message, context, current_like_name, like_names, unlike_names, names, **kwargs)
+        for idx, message in enumerate(messages):
+            format_message(message, context, current_like_name, like_names, unlike_names, names, current_query=(idx==len(messages)-1), **kwargs)
         return messages
 
 
@@ -89,6 +90,7 @@ def format_message(
         like_names: List[Name]=None,
         unlike_names: List[Name]=None,
         names: List[Name] = None,
+        current_query: bool = False,
         **kwargs
 ) -> Message:
     if '诗词典籍' in context.styles:
@@ -98,29 +100,31 @@ def format_message(
         unlike_names = _remove_last_name(unlike_names)
         names = _remove_last_name(names)
 
-        if message.role == "user":
+        if current_query and message.role == "user":
             if context.reply not in [None, "", "无"]:
                 message.content = context.reply
             if current_like_name:
                 message.content = f"针对此意象：{str(current_like_name[0])}\n\n{message.content}"
             names = [n for n in names if re.match(r".*『(.*)』.*", n.meaning)]
             if names:
-                names_format = ""
+                names_format = []
                 for n in names:
                     # 只添加那些引用正常的名字
                     if m := re.match(r".*『(.*)』.*", n.meaning):
                         if all([w in m.group(1) for w in n.name]):
-                            names_format += f"\n{str(n)}"
+                            names_format.append(n.name)
                 if names_format:
-                    message.content += f"\n\n已经提供了以下这些意象，请不要重复提供：\n{names_format}"
+                    message.content += f"\n\n禁止和以下这些意象重复：\n{json.dumps(names_format)}"
         else:
             if message.content_type == "card":
                 # 去掉姓氏，姓氏会有影响
                 message.content = _remove_last_name(message.content)
     else:
-        if message.role == "user":
+        if current_query and message.role == "user":
             if current_like_name:
                 message.content = f"\n请你针对如下姓名：\n{current_like_name}\n{message.content}"
+            if names:
+                message.content += f"\n禁止和以下这些姓名重复：\n{json.dumps([n.name for n in names], ensure_ascii=False)}"
     if message.content_type == "card":
         message.content = json.dumps([n.model_dump(include={"name", "meaning"}) for n in message.content], ensure_ascii=False)
     return message
@@ -129,6 +133,7 @@ def format_message(
 def _remove_last_name(names: Optional[List[Name]]) -> Optional[List[Name]]:
     if not names:
         return names
+    names = [NameBase(**n.model_dump()) for n in names]
     for name in names:
         name.name = name.name.replace(name.last_name, "")
     return names

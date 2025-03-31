@@ -106,7 +106,7 @@ class _TheSheKing(Book):
             if len(line) <= 5:
                 if poetry:
                     self[current_vol].append(poetry)
-                poetry = Article(title=line, author="")
+                poetry = Article(title=f"{self.name}·{line}", author="")
             elif poetry is not None:
                 poetry.append(line)
 
@@ -148,6 +148,24 @@ class _SongOfChu(Book):
 TangPoetryCollection = _TangPoetryCollection()
 TheSheKing = _TheSheKing()
 SongOfChu = _SongOfChu()
+
+
+class _Books(dict):
+
+    def __init__(self):
+        super().__init__(
+            全唐诗=TangPoetryCollection,
+            诗经=TheSheKing,
+            楚辞=SongOfChu,
+        )
+
+    def random(self, n: int = 50, **kwargs):
+        book: Book = random.sample(list(self.values()), 1)[0]
+        n = 3 if book.name == "楚辞" else n
+        return book.random(n)
+
+
+Books = _Books()
 
 
 if __name__ == "__main__":

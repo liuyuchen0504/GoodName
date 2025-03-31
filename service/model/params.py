@@ -53,15 +53,15 @@ class BasicInfo(BaseModel):
     def __str__(self):
         info = ""
         if self.last_name:
-            info += f"姓氏：{self.last_name}"
+            info += f"姓氏：{self.last_name}\n"
         if self.gender:
-            info += f"性别：{self.gender}"
+            info += f"性别：{self.gender}\n"
         if self.birthdate:
-            info += f"出生日期：{self.birthdate}"
+            info += f"出生日期：{self.birthdate}\n"
         if self.family_word:
-            info += f"家族辈份：{self.family_word}"
+            info += f"家族辈份：{self.family_word}\n"
         # if self.styles:
-        #     info += f"风格要求：{self.styles}"
+        #     info += f"风格要求：{self.styles}\n"
         return info
 
     def __repr__(self):
