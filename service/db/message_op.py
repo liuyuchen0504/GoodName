@@ -4,6 +4,7 @@
 # Date 2025/2/15
 # 
 # ====================
+import json
 import re
 from typing import Sequence, Optional, Literal, List
 
@@ -14,7 +15,6 @@ from sqlmodel import select
 from service.db.paginate import paginate_query, PageResponse
 from service.model import Message, Name
 from service.model.message import MessageBase
-from service.model.name import NameBase
 from service.model.params import BasicInfo
 
 
@@ -72,7 +72,7 @@ class MessageOp:
             names: List[Name] = None,
             **kwargs) -> List[Message]:
         # 只加载同风格的上下文
-        messages = [msg for msg in messages if msg.context and msg.context.styles[0] in context.styles]
+        messages = [msg for msg in messages if msg.context.styles and msg.context.styles[0] in context.styles]
         messages = [MessageBase(**msg.model_dump()) for msg in messages]
         # 诗词典籍 不能出现姓名相关的词，不然模型会陷入固有模式，因此不用历史消息
         if "诗词典籍" in context.styles:
@@ -121,13 +121,14 @@ def format_message(
         if message.role == "user":
             if current_like_name:
                 message.content = f"\n请你针对如下姓名：\n{current_like_name}\n{message.content}"
+    if message.content_type == "card":
+        message.content = json.dumps([n.model_dump(include={"name", "meaning"}) for n in message.content], ensure_ascii=False)
     return message
 
 
-def _remove_last_name(names: Optional[List[Name]]) -> Optional[List[NameBase]]:
+def _remove_last_name(names: Optional[List[Name]]) -> Optional[List[Name]]:
     if not names:
         return names
-    names = [NameBase(**name.model_dump()) for name in names]
     for name in names:
         name.name = name.name.replace(name.last_name, "")
     return names

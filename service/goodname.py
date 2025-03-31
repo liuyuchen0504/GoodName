@@ -16,10 +16,11 @@ from config.config import LLMSettings, StyleSettings
 from service.const import LIKE
 from service.db.message_op import MessageOp
 from service.db.name_op import NameOp
-from service.format_utils import user_msg, extract_json, system_msg, format_messages
-from service.llm_client import ask_llm
+from service.format_utils import user_msg, extract_json, system_msg, \
+    format_messages, assistant_msg
+from service.llm_client import ask_llm, DeltaMessage
 from service.lunar_transfor import solar2lunar_chinese_str
-from service.model import Name
+from service.model import Name, Message
 from service.model.name import NameCreate
 from service.model.params import BasicInfo
 from service.prompts import PromptFactory
@@ -86,6 +87,26 @@ class GoodNameService:
             prompt_type = f"style_{list(styles_map.values())[0]}"
         else:
             prompt_type = random.choice(["style_combine", "style_default", "style_artistic"])
+
+        # 如果是生辰八字，则先返回生辰八字的五行信息，只有在流式的情况下才使用
+        if websocket and "生辰八字" in context.styles:
+            birth_prompt = PromptFactory.format_template(
+                prompt_name="analysis_birthdate",
+                birthdate=context.birthdate,
+            )
+            rsps = await ask_llm(
+                model=LLMSettings.get_model(model),
+                messages=[user_msg(birth_prompt)],
+                temperature=temperature,
+                context=context,
+                websocket=websocket,
+            )
+            # 保存信息
+            await MessageOp.insert_message(session, Message(
+                **assistant_msg(rsps.content), context=context,
+                session_id=session_id))
+            await websocket.send_json(DeltaMessage(type="message.delta", content=rsps.content).model_dump())
+
         system_prompt = PromptFactory.format_template(
             prompt_name=prompt_type,
             styles=context.styles,
