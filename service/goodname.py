@@ -89,12 +89,13 @@ class GoodNameService:
             prompt_type = random.choice(["style_combine", "style_default", "style_artistic"])
 
         # 如果是生辰八字，则先返回生辰八字的五行信息，只有在流式的情况下才使用
+        wuxing = None
         if websocket and "生辰八字" in context.styles:
             birth_prompt = PromptFactory.format_template(
                 prompt_name="analysis_birthdate",
                 birthdate=context.birthdate,
             )
-            rsps = await ask_llm(
+            wuxing = await ask_llm(
                 model=LLMSettings.get_model(model),
                 messages=[user_msg(birth_prompt)],
                 temperature=temperature,
@@ -103,9 +104,9 @@ class GoodNameService:
             )
             # 保存信息
             await MessageOp.insert_message(session, Message(
-                **assistant_msg(rsps.content), context=context,
+                **assistant_msg(wuxing.content), context=context,
                 session_id=session_id))
-            await websocket.send_json(DeltaMessage(type="message.delta", content=rsps.content).model_dump())
+            await websocket.send_json(DeltaMessage(type="message.delta", content=wuxing.content).model_dump())
 
         system_prompt = PromptFactory.format_template(
             prompt_name=prompt_type,
@@ -146,7 +147,7 @@ class GoodNameService:
                         if r.get("name") in had_names:
                             continue
                         if "生辰八字" in context.styles and context.birthdate:
-                            r["shengchenbazi"] = solar2lunar_chinese_str(context.birthdate)
+                            r["shengchenbazi"] = f"{solar2lunar_chinese_str(context.birthdate)}\n{wuxing.content if wuxing else ''}".strip()
                         if "家族辈份" in context.styles and context.family_word:
                             r["family_word"] = context.family_word
                         r["styles"] = context.styles
