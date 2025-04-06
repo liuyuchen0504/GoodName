@@ -7,6 +7,7 @@
 from typing import List, Union, Optional, Literal
 
 from fastapi import APIRouter, Depends, WebSocket, Query
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, update
 
@@ -76,13 +77,17 @@ async def generate_names_ws(
     await websocket.accept()
 
     while True:
-        body = await websocket.receive_json()
-        if body.get("type") == "ping":
-            await websocket.send_json(DeltaMessage(type="ping", content="DONE").model_dump())
-            continue
-        body = GenerateRequest(**body)
-        await generate_names(session=session, session_id=session_id, body=body, websocket=websocket)
-        await websocket.send_json(DeltaMessage(type="completion", content="DONE").model_dump())
+        try:
+            body = await websocket.receive_json()
+            if body.get("type") == "ping":
+                await websocket.send_json(DeltaMessage(type="ping", content="DONE").model_dump())
+                continue
+            body = GenerateRequest(**body)
+            await generate_names(session=session, session_id=session_id, body=body, websocket=websocket)
+            await websocket.send_json(DeltaMessage(type="completion", content="DONE").model_dump())
+        except Exception as e:
+            await websocket.send_json(DeltaMessage(type="message.delta", content="服务出了点问题，请您重试").model_dump())
+            logger.error(f"[GenerateNameError] error={e}")
 
 
 @router.post("/{session_id}/name",  response_model=GenerateResponse)
