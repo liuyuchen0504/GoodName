@@ -130,6 +130,7 @@ class GoodNameService:
             temperature=temperature,
             context=context,
             websocket=websocket,
+            shengchenbazi=f"{solar2lunar_chinese_str(context.birthdate) if '生辰八字' in  context.styles and context.birthdate else ''}\n{wuxing.content if wuxing else ''}".strip(),
         )
 
         # 5. 解析结果

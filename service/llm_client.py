@@ -51,7 +51,6 @@ async def ask_llm(
         model=model,
         temperature=temperature,
         stream=stream,
-        **kwargs,
     )
     response = ReasoningChatCompletionMessage(content="")
     current_card = ""
@@ -67,6 +66,9 @@ async def ask_llm(
                     if not name["name"].startswith(context.last_name):
                         name["name"] = f"{context.last_name}{name['name']}"
                     name["pinyin"] = " ".join([p[0] for p in pinyin(name["name"])])
+                    name["gender"] = context.gender
+                    if shengchenbazi := kwargs.get("shengchenbazi"):
+                        name["shengchenbazi"] = shengchenbazi
                     card = NameCard(data=name)
                     await websocket.send_json(DeltaMessage(type="message.delta", card=card).model_dump())
                     current_card = current_card.split("}")[-1]
